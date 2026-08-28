@@ -239,6 +239,44 @@ describe("Crawler", () => {
     });
   });
 
+  it("does not re-enter a retry backoff after pause wakes it", async () => {
+    const pages = new Map<string, FetchedPage>([
+      [
+        MINE_URL,
+        {
+          status: 503,
+          finalUrl: MINE_URL,
+          html: "service unavailable",
+          retryAfterMs: null,
+        },
+      ],
+    ]);
+    let signalSleepStarted = () => {};
+    const sleepStarted = new Promise<void>((resolve) => {
+      signalSleepStarted = resolve;
+    });
+    let releaseSleep = () => {};
+    harness = await makeCrawler({
+      pages,
+      sleepImplementation: async (_milliseconds, signal) =>
+        new Promise<void>((resolve) => {
+          releaseSleep = resolve;
+          signal?.addEventListener("abort", () => resolve(), { once: true });
+          signalSleepStarted();
+        }),
+    });
+
+    const running = harness.crawler.run();
+    await sleepStarted;
+    harness.crawler.requestPause();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect((await harness.repository.getJob())?.state).toBe("paused");
+    releaseSleep();
+    await running;
+    expect(harness.requestedUrls).toEqual([MINE_URL]);
+  });
+
   it("fails closed when a list page loses its recognizable structure", async () => {
     const pages = authenticatedTwoBookScenario();
     const firstListUrl = [...pages.keys()].find((url) => url.includes("/collect?"));

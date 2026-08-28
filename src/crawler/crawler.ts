@@ -63,10 +63,7 @@ export class Crawler {
         if (!job || !isActiveJobState(job.state)) {
           return;
         }
-        if (this.pauseRequested) {
-          await this.saveAndPublish(
-            pauseJob(job, "user", this.nowIso()),
-          );
+        if (await this.pauseIfRequested(job)) {
           return;
         }
 
@@ -91,6 +88,17 @@ export class Crawler {
   private async saveAndPublish(job: ExportJob): Promise<void> {
     await this.dependencies.repository.saveJob(job);
     await this.dependencies.publish(job);
+  }
+
+  private async pauseIfRequested(job?: ExportJob): Promise<boolean> {
+    if (!this.pauseRequested) {
+      return false;
+    }
+    const current = job ?? (await this.dependencies.repository.getJob());
+    if (current && isActiveJobState(current.state)) {
+      await this.saveAndPublish(pauseJob(current, "user", this.nowIso()));
+    }
+    return true;
   }
 
   private async waitUntilAllowed(job: ExportJob): Promise<void> {
@@ -183,14 +191,11 @@ export class Crawler {
       if (!beforeRequest || !isActiveJobState(beforeRequest.state)) {
         return null;
       }
+      if (await this.pauseIfRequested(beforeRequest)) {
+        return null;
+      }
       await this.waitUntilAllowed(beforeRequest);
-      if (this.pauseRequested) {
-        const current = await this.dependencies.repository.getJob();
-        if (current && isActiveJobState(current.state)) {
-          await this.saveAndPublish(
-            pauseJob(current, "user", this.nowIso()),
-          );
-        }
+      if (await this.pauseIfRequested()) {
         return null;
       }
 
