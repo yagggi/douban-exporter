@@ -70,6 +70,23 @@ describe("deriveBookBrowser", () => {
     );
   });
 
+  it("keeps the user's short review available for the book card", () => {
+    const model = deriveBookBrowser(
+      [
+        makeBookRecord({
+          shortReview: "短暂而洋洋自得。 （南阳）",
+        }),
+      ],
+      "collect",
+      1,
+    );
+
+    expect(model.items[0]).toMatchObject({
+      hasShortReview: true,
+      shortReviewText: "短暂而洋洋自得。 （南阳）",
+    });
+  });
+
   it("builds clickable page numbers with ellipses and the last page", () => {
     const records = Array.from({ length: 201 }, (_, index) =>
       makeBookRecord({ subjectId: `book-${index}`, status: "collect" }),

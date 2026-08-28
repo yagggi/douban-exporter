@@ -26,6 +26,8 @@ export interface BookItemViewModel {
   publishedAtText: string;
   isbnText: string;
   pagesText: string;
+  hasShortReview: boolean;
+  shortReviewText: string;
 }
 
 export interface BookBrowserViewModel {
@@ -95,6 +97,8 @@ function itemViewModel(record: BookRecord): BookItemViewModel {
     publishedAtText: record.publishedAt || "—",
     isbnText: record.isbn || "—",
     pagesText: record.pages || "—",
+    hasShortReview: record.shortReview.trim() !== "",
+    shortReviewText: record.shortReview,
   };
 }
 

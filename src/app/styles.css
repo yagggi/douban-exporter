@@ -252,6 +252,30 @@ dd {
   font-size: 0.86rem;
 }
 
+.book-review {
+  margin: 0.8rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid #68a88d;
+  border-radius: 0 0.55rem 0.55rem 0;
+  background: #f0f7f3;
+  color: #29483d;
+  white-space: pre-wrap;
+}
+
+.book-review-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: #287b5c;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 780;
+}
+
+.book-review p {
+  margin: 0;
+  line-height: 1.55;
+}
+
 .book-metadata {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

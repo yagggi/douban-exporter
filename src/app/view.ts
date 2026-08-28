@@ -106,6 +106,14 @@ function renderBookBrowser(
           `${book.statusLabel} · ${book.markedAt} · ${book.ratingText}`,
         ),
       );
+      if (book.hasShortReview) {
+        const review = element("blockquote", "book-review");
+        review.append(
+          element("span", "book-review-label", "我的短评"),
+          element("p", undefined, book.shortReviewText),
+        );
+        item.append(review);
+      }
       if (book.detailState === "complete") {
         const metadata = element("dl", "book-metadata");
         metadata.append(

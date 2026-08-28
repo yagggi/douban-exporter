@@ -98,6 +98,23 @@ describe("renderApp", () => {
     expect(selectBookStatus).toHaveBeenCalledWith("wish");
   });
 
+  it("renders the saved short review on its book card", () => {
+    const root = document.createElement("div");
+    const record = makeBookRecord({
+      title: "奇迹集",
+      shortReview: "短暂而洋洋自得。 （南阳）",
+    });
+    const model = {
+      ...deriveViewModel(makeJob({ state: "paused" }), 1, null),
+      bookBrowser: deriveBookBrowser([record], "collect", 1),
+    };
+
+    renderApp(root, model, emptyHandlers());
+
+    expect(root.textContent).toContain("我的短评");
+    expect(root.textContent).toContain("短暂而洋洋自得。 （南阳）");
+  });
+
   it("renders clickable page numbers including the last page", () => {
     const root = document.createElement("div");
     const goToBookPage = vi.fn();
