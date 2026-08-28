@@ -19,8 +19,8 @@ export interface BookItemViewModel {
   subjectUrl: string;
   markedAt: string;
   ratingText: string;
-  detailState: "pending" | "complete";
-  detailStateText: "等待详情补全" | "详情已补全";
+  detailState: "pending" | "complete" | "unavailable";
+  detailStateText: "等待详情补全" | "详情已补全" | "详情不可用";
   authorsText: string;
   publisherText: string;
   publishedAtText: string;
@@ -83,6 +83,7 @@ function buildPaginationItems(page: number, totalPages: number): PaginationItem[
 
 function itemViewModel(record: BookRecord): BookItemViewModel {
   const completed = record.detailStatus === "complete";
+  const unavailable = record.detailStatus === "unavailable";
   return {
     subjectId: record.subjectId,
     statusLabel: BOOK_STATUS_LABELS[record.status],
@@ -90,8 +91,16 @@ function itemViewModel(record: BookRecord): BookItemViewModel {
     subjectUrl: record.subjectUrl,
     markedAt: record.markedAt || "未知日期",
     ratingText: record.myRating === null ? "未评分" : `${record.myRating} 星`,
-    detailState: completed ? "complete" : "pending",
-    detailStateText: completed ? "详情已补全" : "等待详情补全",
+    detailState: completed
+      ? "complete"
+      : unavailable
+        ? "unavailable"
+        : "pending",
+    detailStateText: completed
+      ? "详情已补全"
+      : unavailable
+        ? "详情不可用"
+        : "等待详情补全",
     authorsText: record.authors.join(" / ") || "—",
     publisherText: record.publisher || "—",
     publishedAtText: record.publishedAt || "—",

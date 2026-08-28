@@ -1,5 +1,5 @@
 import type { ParsedBookDetails } from "../domain/types";
-import { PageStructureError } from "./errors";
+import { PageStructureError, SubjectUnavailableError } from "./errors";
 import {
   breakSeparatedLines,
   elementMultilineText,
@@ -52,6 +52,13 @@ export function parseDetailPage(
   document: Document,
   expectedSubjectId: string,
 ): ParsedBookDetails {
+  const pageText = normalizeInlineText(document.body.textContent ?? "");
+  if (
+    pageText.includes("你想访问的条目豆瓣不收录") ||
+    /条目(?:已被删除|不存在)/u.test(pageText)
+  ) {
+    throw new SubjectUnavailableError();
+  }
   if (!collectSubjectIds(document).has(expectedSubjectId)) {
     throw new PageStructureError("详情页 subject ID 与请求目标不一致");
   }

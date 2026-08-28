@@ -18,6 +18,7 @@ export function makeJob(overrides: Partial<ExportJob> = {}): ExportJob {
     completedLists: [],
     recordsDiscovered: 0,
     detailsCompleted: 0,
+    detailsUnavailable: 0,
     warningCount: 0,
     failureCount: 0,
     requestCount: 0,
@@ -46,6 +47,9 @@ export function makeListRecord(
     reviewedAt: "2024-05-06",
     reviewTimeSource: "标记时间回退",
     listSeenAt: FIXED_TIME,
+    authors: ["[美] E.B.怀特"],
+    publisher: "上海译文出版社",
+    publishedAt: "2004-5",
     ...overrides,
   };
 }

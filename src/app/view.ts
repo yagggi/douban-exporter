@@ -145,6 +145,14 @@ class BookCardView {
     const completed = book.detailState === "complete";
     setHidden(this.metadata, !completed);
     setHidden(this.pendingCopy, completed);
+    if (!completed) {
+      setText(
+        this.pendingCopy,
+        book.detailState === "unavailable"
+          ? "豆瓣条目已删除或不再收录；已保留列表信息。"
+          : "列表信息已保存，等待访问详情页补全。",
+      );
+    }
     if (completed) {
       setText(this.author.value, book.authorsText);
       setText(this.publisher.value, book.publisherText);

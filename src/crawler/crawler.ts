@@ -12,7 +12,10 @@ import {
   type JobError,
 } from "../domain/types";
 import { parseDetailPage } from "../parsers/detail-page";
-import { PageStructureError } from "../parsers/errors";
+import {
+  PageStructureError,
+  SubjectUnavailableError,
+} from "../parsers/errors";
 import { parseListPage } from "../parsers/list-page";
 import { classifyPage } from "../parsers/page-classifier";
 import { parseHtml } from "../parsers/text";
@@ -405,7 +408,17 @@ export class Crawler {
         await this.dependencies.publish(nextJob);
       }
     } catch (error) {
-      await this.blockParseError(error, record.subjectUrl);
+      if (error instanceof SubjectUnavailableError) {
+        await this.dependencies.repository.commitDetailUnavailable(
+          record.subjectId,
+          error.message,
+          this.nowIso(),
+        );
+        const nextJob = await this.dependencies.repository.getJob();
+        if (nextJob) await this.dependencies.publish(nextJob);
+      } else {
+        await this.blockParseError(error, record.subjectUrl);
+      }
     }
   }
 }

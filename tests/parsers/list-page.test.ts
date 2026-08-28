@@ -26,6 +26,9 @@ describe("parseListPage", () => {
       markedAt: "2022-10-24",
       myRating: 4,
       shortReview: "历史掌故类的",
+      authors: ["高伯雨"],
+      publisher: "故宫出版社",
+      publishedAt: "2011-12",
     });
     expect(result.nextUrl).toBe(
       "https://book.douban.com/people/example/collect?start=15&sort=time&rating=all&filter=all&mode=grid",
@@ -51,6 +54,9 @@ describe("parseListPage", () => {
       reviewedAt: "2024-05-06",
       reviewTimeSource: "标记时间回退",
       listSeenAt: "2026-08-28T00:00:00.000Z",
+      authors: [],
+      publisher: "",
+      publishedAt: "",
     });
     expect(result.nextUrl).toBe(
       "https://book.douban.com/people/example/collect?start=15",

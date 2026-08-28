@@ -38,8 +38,27 @@ describe("deriveViewModel", () => {
     expect(model).toMatchObject({
       runStateText: "运行中",
       progressMode: "determinate",
-      progressCaption: "正在补充图书详情：45 / 225",
+      progressCaption: "正在处理图书详情：45 / 225（补全 45，不可用 0）",
       progressPercent: 20,
+    });
+  });
+
+  it("counts unavailable subjects as processed without calling them completed", () => {
+    const model = deriveViewModel(
+      makeJob({
+        state: "enriching_details",
+        recordsDiscovered: 10,
+        detailsCompleted: 4,
+        detailsUnavailable: 1,
+      }),
+      10,
+      null,
+    );
+
+    expect(model).toMatchObject({
+      progressText: "5 / 10",
+      progressPercent: 50,
+      progressCaption: "正在处理图书详情：5 / 10（补全 4，不可用 1）",
     });
   });
 

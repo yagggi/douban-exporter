@@ -29,7 +29,7 @@ export type JobState =
 
 export type ReviewTimeSource = "独立时间" | "标记时间回退" | null;
 
-export type DetailStatus = "pending" | "complete";
+export type DetailStatus = "pending" | "complete" | "unavailable";
 
 export interface ParsedListRecord {
   subjectId: string;
@@ -42,6 +42,9 @@ export interface ParsedListRecord {
   reviewedAt: string;
   reviewTimeSource: ReviewTimeSource;
   listSeenAt: string;
+  authors: string[];
+  publisher: string;
+  publishedAt: string;
 }
 
 export interface ParsedBookDetails {
@@ -81,6 +84,7 @@ export interface ExportJob {
   completedLists: BookStatus[];
   recordsDiscovered: number;
   detailsCompleted: number;
+  detailsUnavailable: number;
   warningCount: number;
   failureCount: number;
   requestCount: number;

@@ -31,9 +31,6 @@ function blankBookRecord(record: ParsedListRecord): BookRecord {
     ...record,
     isbn: "",
     pages: "",
-    authors: [],
-    publisher: "",
-    publishedAt: "",
     introduction: "",
     detailStatus: "pending",
     warnings: [],
@@ -56,11 +53,17 @@ function mergeListObservation(
     ? [...new Set([...existing.warnings, "状态在抓取期间发生冲突"])]
     : existing.warnings;
 
-  return {
+  const merged: BookRecord = {
     ...existing,
     ...incoming,
     warnings,
   };
+  if (existing.detailStatus === "complete") {
+    merged.authors = existing.authors;
+    merged.publisher = existing.publisher;
+    merged.publishedAt = existing.publishedAt;
+  }
+  return merged;
 }
 
 function sortRecords(records: BookRecord[]): BookRecord[] {
@@ -236,6 +239,58 @@ export class ExporterRepository {
       const nextJob: ExportJob = {
         ...job,
         detailsCompleted: job.detailsCompleted + (wasPending ? 1 : 0),
+        currentUrl: null,
+        retry: null,
+        updatedAt: committedAt,
+      };
+
+      this.hooks.beforeAtomicCommit?.();
+      await records.put(nextRecord);
+      await jobs.put(nextJob, "current");
+      await transaction.done;
+    } catch (error) {
+      return abortAndRethrow(transaction, error);
+    }
+  }
+
+  async commitDetailUnavailable(
+    subjectId: string,
+    warning: string,
+    committedAt: string,
+  ): Promise<void> {
+    const transaction = this.database.transaction(
+      ["jobs", "records"],
+      "readwrite",
+    );
+    try {
+      const jobs = transaction.objectStore("jobs");
+      const records = transaction.objectStore("records");
+      const [job, record] = await Promise.all([
+        jobs.get("current"),
+        records.get(subjectId),
+      ]);
+      if (!job) {
+        throw new Error("找不到当前导出任务");
+      }
+      if (!record) {
+        throw new Error(`找不到待补全图书: ${subjectId}`);
+      }
+
+      const wasPending = record.detailStatus === "pending";
+      const warningAlreadyPresent = record.warnings.includes(warning);
+      const nextRecord: BookRecord = {
+        ...record,
+        detailStatus: "unavailable",
+        warnings: warningAlreadyPresent
+          ? record.warnings
+          : [...record.warnings, warning],
+      };
+      const nextJob: ExportJob = {
+        ...job,
+        detailsUnavailable:
+          (job.detailsUnavailable ?? 0) + (wasPending ? 1 : 0),
+        warningCount:
+          (job.warningCount ?? 0) + (warningAlreadyPresent ? 0 : 1),
         currentUrl: null,
         retry: null,
         updatedAt: committedAt,

@@ -70,6 +70,35 @@ function resolveReviewTime(
   return { reviewedAt: markedAt, reviewTimeSource: "标记时间回退" };
 }
 
+function extractPublicationSummary(item: Element): {
+  authors: string[];
+  publisher: string;
+  publishedAt: string;
+} {
+  const text = normalizeInlineText(
+    item.querySelector(".pub")?.textContent ?? "",
+  );
+  const parts = text
+    .split(/\s+\/\s+/u)
+    .map(normalizeInlineText)
+    .filter((part) => part !== "");
+  let yearIndex = -1;
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    if (/^\d{4}(?:[-年].*)?$/u.test(parts[index] ?? "")) {
+      yearIndex = index;
+      break;
+    }
+  }
+  if (yearIndex < 1) {
+    return { authors: [], publisher: "", publishedAt: "" };
+  }
+  return {
+    authors: parts.slice(0, Math.max(0, yearIndex - 1)),
+    publisher: parts[yearIndex - 1] ?? "",
+    publishedAt: parts[yearIndex] ?? "",
+  };
+}
+
 function parseListItem(
   item: Element,
   status: BookStatus,
@@ -96,6 +125,7 @@ function parseListItem(
     markedAt,
     extractIndependentReviewTime(item),
   );
+  const publication = extractPublicationSummary(item);
 
   return {
     subjectId,
@@ -107,6 +137,7 @@ function parseListItem(
     shortReview,
     ...reviewTime,
     listSeenAt: fetchedAt,
+    ...publication,
   };
 }
 

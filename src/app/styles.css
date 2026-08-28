@@ -245,6 +245,11 @@ dd {
   color: #6b4a00;
 }
 
+.detail-badge.unavailable {
+  background: #f9d7d7;
+  color: #752323;
+}
+
 .book-list-meta,
 .pending-copy {
   margin: 0.45rem 0 0;

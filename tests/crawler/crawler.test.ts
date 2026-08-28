@@ -332,4 +332,37 @@ describe("Crawler", () => {
 
     expect((await harness.repository.getJob())?.state).toBe("parse_error");
   });
+
+  it("continues after a removed subject and completes the remaining books", async () => {
+    const pages = authenticatedTwoBookScenario();
+    pages.set("https://book.douban.com/subject/1036274/", {
+      status: 200,
+      finalUrl: "https://book.douban.com/subject/1036274/",
+      html: "<html><body>呃... 你想访问的条目豆瓣不收录。</body></html>",
+      retryAfterMs: null,
+    });
+    harness = await makeCrawler({ pages });
+
+    await harness.crawler.run();
+
+    expect(await harness.repository.getJob()).toMatchObject({
+      state: "completed",
+      detailsCompleted: 1,
+      detailsUnavailable: 1,
+      warningCount: 1,
+      failureCount: 0,
+    });
+    expect(await harness.repository.listRecordsSnapshot()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          subjectId: "1036274",
+          detailStatus: "unavailable",
+        }),
+        expect.objectContaining({
+          subjectId: "9999999",
+          detailStatus: "complete",
+        }),
+      ]),
+    );
+  });
 });

@@ -60,13 +60,15 @@ function progressCaption(job: ExportJob | undefined): string {
   if (job.state === "discovering_lists") {
     return `列表扫描进行中，已发现 ${job.recordsDiscovered} 本`;
   }
+  const unavailable = job.detailsUnavailable ?? 0;
+  const processed = job.detailsCompleted + unavailable;
   if (job.state === "enriching_details") {
-    return `正在补充图书详情：${job.detailsCompleted} / ${job.recordsDiscovered}`;
+    return `正在处理图书详情：${processed} / ${job.recordsDiscovered}（补全 ${job.detailsCompleted}，不可用 ${unavailable}）`;
   }
   if (job.state === "completed") {
-    return `详情补全完成：${job.detailsCompleted} / ${job.recordsDiscovered}`;
+    return `详情处理完成：${processed} / ${job.recordsDiscovered}（补全 ${job.detailsCompleted}，不可用 ${unavailable}）`;
   }
-  return `当前已发现 ${job.recordsDiscovered} 本，详情完成 ${job.detailsCompleted} 本`;
+  return `当前已发现 ${job.recordsDiscovered} 本，详情已处理 ${processed} 本`;
 }
 
 function statusTone(job: ExportJob | undefined): AppViewModel["statusTone"] {
@@ -99,13 +101,15 @@ export function deriveViewModel(
 ): AppViewModel {
   const discovered = job?.recordsDiscovered ?? 0;
   const completed = job?.detailsCompleted ?? 0;
+  const unavailable = job?.detailsUnavailable ?? 0;
+  const processed = completed + unavailable;
   const canExport = Boolean(
     job && recordCount > 0 && !isActiveJobState(job.state),
   );
   const progressPercent =
     discovered === 0
       ? 0
-      : Math.min(100, Math.round((completed / discovered) * 100));
+      : Math.min(100, Math.round((processed / discovered) * 100));
 
   return {
     accountText: job?.userName || "尚未识别当前用户",
@@ -117,7 +121,7 @@ export function deriveViewModel(
         ? "indeterminate"
         : "determinate",
     progressCaption: progressCaption(job),
-    progressText: `${completed} / ${discovered}`,
+    progressText: `${processed} / ${discovered}`,
     progressPercent,
     recordCount,
     requestCount: job?.requestCount ?? 0,

@@ -115,6 +115,26 @@ describe("renderApp", () => {
     expect(root.textContent).toContain("短暂而洋洋自得。 （南阳）");
   });
 
+  it("renders an unavailable badge for a removed Douban subject", () => {
+    const root = document.createElement("div");
+    const record = makeBookRecord({
+      subjectId: "2076886",
+      title: "已删除的书",
+      detailStatus: "unavailable",
+    });
+    renderApp(
+      root,
+      {
+        ...deriveViewModel(makeJob({ state: "paused" }), 1, null),
+        bookBrowser: deriveBookBrowser([record], "collect", 1),
+      },
+      emptyHandlers(),
+    );
+
+    expect(root.textContent).toContain("详情不可用");
+    expect(root.textContent).toContain("豆瓣条目已删除或不再收录");
+  });
+
   it("renders clickable page numbers including the last page", () => {
     const root = document.createElement("div");
     const goToBookPage = vi.fn();

@@ -166,6 +166,37 @@ describe("ExporterRepository", () => {
     expect(await repository.nextPendingRecord()).toBeUndefined();
   });
 
+  it("marks a removed subject unavailable and advances progress atomically", async () => {
+    await repository.commitListPage({
+      jobId: "current",
+      status: "collect",
+      records: [makeListRecord({ subjectId: "2076886" })],
+      nextUrl: null,
+      committedAt: "2026-08-28T01:00:00.000Z",
+    });
+
+    await repository.commitDetailUnavailable(
+      "2076886",
+      "豆瓣条目已删除或不再收录",
+      "2026-08-28T02:00:00.000Z",
+    );
+
+    expect((await repository.listRecordsSnapshot())[0]).toMatchObject({
+      subjectId: "2076886",
+      detailStatus: "unavailable",
+      authors: ["[美] E.B.怀特"],
+      publisher: "上海译文出版社",
+      publishedAt: "2004-5",
+      warnings: ["豆瓣条目已删除或不再收录"],
+    });
+    expect(await repository.getJob()).toMatchObject({
+      detailsUnavailable: 1,
+      detailsCompleted: 0,
+      warningCount: 1,
+    });
+    expect(await repository.nextPendingRecord()).toBeUndefined();
+  });
+
   it("keeps directory settings when resetting task data", async () => {
     const handle = {
       kind: "directory",

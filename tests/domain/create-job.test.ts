@@ -15,6 +15,7 @@ describe("createExportJob", () => {
       completedLists: [],
       recordsDiscovered: 0,
       detailsCompleted: 0,
+      detailsUnavailable: 0,
       warningCount: 0,
       failureCount: 0,
       requestCount: 0,

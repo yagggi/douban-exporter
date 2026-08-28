@@ -43,4 +43,17 @@ describe("parseDetailPage", () => {
       PageStructureError,
     );
   });
+
+  it("classifies a removed Douban subject as unavailable", async () => {
+    const html = await readFile("tests/fixtures/detail-unavailable.html", "utf8");
+    try {
+      parseDetailPage(parseHtml(html), "2076886");
+      throw new Error("预期解析器拒绝已删除条目");
+    } catch (error) {
+      expect(error).toMatchObject({
+        name: "SubjectUnavailableError",
+        message: "豆瓣条目已删除或不再收录",
+      });
+    }
+  });
 });

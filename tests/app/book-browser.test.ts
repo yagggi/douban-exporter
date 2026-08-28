@@ -87,6 +87,28 @@ describe("deriveBookBrowser", () => {
     });
   });
 
+  it("labels a removed subject as unavailable while retaining list data", () => {
+    const model = deriveBookBrowser(
+      [
+        makeBookRecord({
+          subjectId: "2076886",
+          title: "已删除的书",
+          detailStatus: "unavailable",
+          isbn: "",
+          authors: [],
+        }),
+      ],
+      "collect",
+      1,
+    );
+
+    expect(model.items[0]).toMatchObject({
+      title: "已删除的书",
+      detailState: "unavailable",
+      detailStateText: "详情不可用",
+    });
+  });
+
   it("builds clickable page numbers with ellipses and the last page", () => {
     const records = Array.from({ length: 201 }, (_, index) =>
       makeBookRecord({ subjectId: `book-${index}`, status: "collect" }),
