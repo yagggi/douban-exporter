@@ -47,14 +47,21 @@ export class DirectoryWriter {
     contents: string,
     mayRequestPermission: boolean,
   ): Promise<boolean> {
-    if (!(await this.ensureWritePermission(handle, mayRequestPermission))) {
-      return false;
-    }
+    try {
+      if (!(await this.ensureWritePermission(handle, mayRequestPermission))) {
+        return false;
+      }
 
-    const file = await handle.getFileHandle(fileName, { create: true });
-    const writable = await file.createWritable();
-    await writable.write(contents);
-    await writable.close();
-    return true;
+      const file = await handle.getFileHandle(fileName, { create: true });
+      const writable = await file.createWritable();
+      await writable.write(contents);
+      await writable.close();
+      return true;
+    } catch (error) {
+      throw new Error(
+        "自定义目录不可用，请重新选择目录或改用默认下载目录",
+        { cause: error },
+      );
+    }
   }
 }

@@ -108,6 +108,11 @@ export interface CrawlerHarnessOptions {
   pages?: Map<string, FetchedPage>;
   onRequest?: (url: string, crawler: Crawler) => void;
   onSleep?: (milliseconds: number, crawler: Crawler) => void;
+  sleepImplementation?: (
+    milliseconds: number,
+    signal: AbortSignal | undefined,
+    crawler: Crawler,
+  ) => Promise<void>;
 }
 
 export interface CrawlerHarness {
@@ -148,9 +153,16 @@ export async function makeCrawler(
       }
       return response;
     },
-    sleep: async (milliseconds) => {
+    sleep: async (milliseconds, signal?: AbortSignal) => {
       observedSleeps.push(milliseconds);
       options.onSleep?.(milliseconds, crawler);
+      if (options.sleepImplementation) {
+        await options.sleepImplementation(milliseconds, signal, crawler);
+        return;
+      }
+      if (signal?.aborted) {
+        return;
+      }
       currentTime += milliseconds;
     },
     random: () => 0,

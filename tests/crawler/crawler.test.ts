@@ -82,6 +82,31 @@ describe("Crawler", () => {
     });
   });
 
+  it("wakes a long cooldown immediately when pause is requested", async () => {
+    let signalSleepStarted = () => {};
+    const sleepStarted = new Promise<void>((resolve) => {
+      signalSleepStarted = resolve;
+    });
+    let releaseSleep = () => {};
+    harness = await makeCrawler({
+      sleepImplementation: async (_milliseconds, signal) =>
+        new Promise<void>((resolve) => {
+          releaseSleep = resolve;
+          signal?.addEventListener("abort", () => resolve(), { once: true });
+          signalSleepStarted();
+        }),
+    });
+
+    const running = harness.crawler.run();
+    await sleepStarted;
+    harness.crawler.requestPause();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect((await harness.repository.getJob())?.state).toBe("paused");
+    releaseSleep();
+    await running;
+  });
+
   it("honors a pause that arrives immediately before the run loop starts", async () => {
     harness = await makeCrawler();
     harness.crawler.requestPause();

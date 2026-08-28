@@ -27,7 +27,7 @@ import {
 export interface CrawlerDependencies {
   repository: ExporterRepository;
   fetchPage: (url: string) => Promise<FetchedPage>;
-  sleep: (milliseconds: number) => Promise<void>;
+  sleep: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
   random: () => number;
   now: () => Date;
   publish: (job: ExportJob) => Promise<void>;
@@ -43,11 +43,13 @@ function safeErrorMessage(error: unknown): string {
 export class Crawler {
   private pauseRequested = false;
   private running = false;
+  private waitController: AbortController | null = null;
 
   constructor(private readonly dependencies: CrawlerDependencies) {}
 
   requestPause(): void {
     this.pauseRequested = true;
+    this.waitController?.abort();
   }
 
   async run(): Promise<void> {
@@ -97,7 +99,19 @@ export class Crawler {
     }
     const remaining = Date.parse(job.nextAllowedAt) - this.dependencies.now().getTime();
     if (remaining > 0) {
-      await this.dependencies.sleep(remaining);
+      const controller = new AbortController();
+      this.waitController = controller;
+      try {
+        await this.dependencies.sleep(remaining, controller.signal);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          throw error;
+        }
+      } finally {
+        if (this.waitController === controller) {
+          this.waitController = null;
+        }
+      }
     }
   }
 

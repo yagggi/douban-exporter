@@ -111,4 +111,23 @@ describe("DirectoryWriter", () => {
     ).resolves.toBe(false);
     expect(memory.createdFiles()).toBe(0);
   });
+
+  it("turns a stale directory handle failure into actionable recovery guidance", async () => {
+    const handle = {
+      kind: "directory",
+      name: "Old Folder",
+      async queryPermission() {
+        throw new DOMException("handle is stale", "NotFoundError");
+      },
+    } as unknown as FileSystemDirectoryHandle;
+    const writer = new DirectoryWriter({
+      async showDirectoryPicker() {
+        return handle;
+      },
+    });
+
+    await expect(
+      writer.writeTextFile(handle, "books.csv", "内容", true),
+    ).rejects.toThrow("重新选择目录或改用默认下载目录");
+  });
 });
