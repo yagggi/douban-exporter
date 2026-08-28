@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "豆瓣图书导出器",
+  "description": "将当前豆瓣账号标记的图书导出为 CSV。",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "permissions": ["downloads", "offscreen", "alarms"],
+  "host_permissions": ["https://*.douban.com/*"],
+  "background": {
+    "service_worker": "assets/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "打开豆瓣图书导出器"
+  }
+}
+
