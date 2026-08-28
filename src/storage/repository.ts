@@ -260,6 +260,14 @@ export class ExporterRepository {
     return this.database.get("settings", "directoryHandle");
   }
 
+  async clearDirectoryHandle(): Promise<void> {
+    await this.database.delete("settings", "directoryHandle");
+  }
+
+  async countRecords(): Promise<number> {
+    return this.database.count("records");
+  }
+
   async resetTaskData(): Promise<void> {
     const transaction = this.database.transaction(
       ["jobs", "records"],

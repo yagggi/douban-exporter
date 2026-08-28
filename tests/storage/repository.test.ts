@@ -178,4 +178,16 @@ describe("ExporterRepository", () => {
     expect(await repository.listRecordsSnapshot()).toEqual([]);
     expect((await repository.getDirectoryHandle())?.name).toBe("Books");
   });
+
+  it("can explicitly return to the default download directory", async () => {
+    const handle = {
+      kind: "directory",
+      name: "Books",
+    } as FileSystemDirectoryHandle;
+    await repository.saveDirectoryHandle(handle);
+
+    await repository.clearDirectoryHandle();
+
+    expect(await repository.getDirectoryHandle()).toBeUndefined();
+  });
 });
