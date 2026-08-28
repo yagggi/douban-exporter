@@ -65,6 +65,10 @@ async function bootstrap(root: HTMLElement): Promise<void> {
       controller.nextBookPage();
       void refresh();
     },
+    goToBookPage: (page) => {
+      controller.goToBookPage(page);
+      void refresh();
+    },
   };
 
   chrome.runtime.onMessage.addListener((message: unknown) => {

@@ -13,6 +13,7 @@ export interface AppActionHandlers {
   selectBookStatus(status: BookStatus): void;
   previousBookPage(): void;
   nextBookPage(): void;
+  goToBookPage(page: number): void;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -126,6 +127,27 @@ function renderBookBrowser(
   }
 
   const pagination = element("div", "pagination");
+  const pageNumbers = element("div", "page-numbers");
+  pageNumbers.setAttribute("aria-label", "书籍列表页码");
+  for (const item of model.paginationItems) {
+    if (item.kind === "ellipsis") {
+      pageNumbers.append(element("span", "pagination-ellipsis", "…"));
+      continue;
+    }
+    const pageButton = element(
+      "button",
+      item.selected ? "page-number selected" : "page-number",
+      String(item.page),
+    );
+    pageButton.type = "button";
+    pageButton.dataset.page = String(item.page);
+    pageButton.setAttribute("aria-label", `跳转到第 ${item.page} 页`);
+    if (item.selected) {
+      pageButton.setAttribute("aria-current", "page");
+    }
+    pageButton.addEventListener("click", () => handlers.goToBookPage(item.page));
+    pageNumbers.append(pageButton);
+  }
   pagination.append(
     actionButton(
       "previousBookPage",
@@ -133,7 +155,7 @@ function renderBookBrowser(
       model.canPrevious,
       async () => handlers.previousBookPage(),
     ),
-    element("span", "page-indicator", `${model.page} / ${model.totalPages}`),
+    pageNumbers,
     actionButton(
       "nextBookPage",
       "下一页",

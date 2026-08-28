@@ -285,11 +285,46 @@ dd {
   min-height: 2.25rem;
 }
 
-.page-indicator {
-  min-width: 4rem;
+.page-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.page-number {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.45rem;
+  border: 1px solid #aac5b8;
+  border-radius: 0.5rem;
+  background: #f8fbf9;
+  color: #29483d;
+  font: inherit;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.page-number:hover,
+.page-number.selected {
+  border-color: #207553;
+  background: #207553;
+  color: white;
+}
+
+.page-number:focus-visible {
+  outline: 3px solid #f2b84b;
+  outline-offset: 1px;
+}
+
+.pagination-ellipsis {
+  display: inline-flex;
+  min-width: 1.6rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
   color: #49675d;
-  font-weight: 700;
-  text-align: center;
+  font-weight: 750;
 }
 
 .actions {

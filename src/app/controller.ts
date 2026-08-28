@@ -111,6 +111,10 @@ export class AppController {
     this.bookPages[this.activeBookStatus] += 1;
   }
 
+  goToBookPage(page: number): void {
+    this.bookPages[this.activeBookStatus] = Math.max(1, Math.trunc(page));
+  }
+
   private async send(command: BackgroundCommand): Promise<void> {
     const result = await this.dependencies.runtime.sendMessage(command);
     if (result && !result.ok) {

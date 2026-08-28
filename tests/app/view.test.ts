@@ -97,6 +97,26 @@ describe("renderApp", () => {
     root.querySelector<HTMLButtonElement>('[data-status="wish"]')?.click();
     expect(selectBookStatus).toHaveBeenCalledWith("wish");
   });
+
+  it("renders clickable page numbers including the last page", () => {
+    const root = document.createElement("div");
+    const goToBookPage = vi.fn();
+    const handlers = { ...emptyHandlers(), goToBookPage };
+    const records = Array.from({ length: 201 }, (_, index) =>
+      makeBookRecord({ subjectId: `book-${index}`, status: "collect" }),
+    );
+    const model = {
+      ...deriveViewModel(makeJob({ state: "paused" }), records.length, null),
+      bookBrowser: deriveBookBrowser(records, "collect", 6),
+    };
+
+    renderApp(root, model, handlers);
+
+    expect(root.querySelector('[data-page="11"]')).not.toBeNull();
+    expect(root.textContent).toContain("…");
+    root.querySelector<HTMLButtonElement>('[data-page="11"]')?.click();
+    expect(goToBookPage).toHaveBeenCalledWith(11);
+  });
 });
 
 function emptyHandlers() {
@@ -111,5 +131,6 @@ function emptyHandlers() {
     selectBookStatus: () => {},
     previousBookPage: () => {},
     nextBookPage: () => {},
+    goToBookPage: () => {},
   };
 }

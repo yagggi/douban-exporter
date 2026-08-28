@@ -36,7 +36,47 @@ export interface BookBrowserViewModel {
   totalPages: number;
   canPrevious: boolean;
   canNext: boolean;
+  paginationItems: PaginationItem[];
   emptyText: string;
+}
+
+export type PaginationItem =
+  | { kind: "page"; page: number; selected: boolean }
+  | { kind: "ellipsis"; key: string };
+
+function buildPaginationItems(page: number, totalPages: number): PaginationItem[] {
+  const visiblePages = new Set<number>([1, totalPages]);
+  if (totalPages <= 7) {
+    for (let candidate = 1; candidate <= totalPages; candidate += 1) {
+      visiblePages.add(candidate);
+    }
+  } else if (page <= 4) {
+    for (let candidate = 1; candidate <= 5; candidate += 1) {
+      visiblePages.add(candidate);
+    }
+  } else if (page >= totalPages - 3) {
+    for (let candidate = totalPages - 4; candidate <= totalPages; candidate += 1) {
+      visiblePages.add(candidate);
+    }
+  } else {
+    for (let candidate = page - 2; candidate <= page + 2; candidate += 1) {
+      visiblePages.add(candidate);
+    }
+  }
+
+  const pages = [...visiblePages]
+    .filter((candidate) => candidate >= 1 && candidate <= totalPages)
+    .sort((left, right) => left - right);
+  const result: PaginationItem[] = [];
+  let previous = 0;
+  for (const candidate of pages) {
+    if (previous !== 0 && candidate - previous > 1) {
+      result.push({ kind: "ellipsis", key: `${previous}-${candidate}` });
+    }
+    result.push({ kind: "page", page: candidate, selected: candidate === page });
+    previous = candidate;
+  }
+  return result;
 }
 
 function itemViewModel(record: BookRecord): BookItemViewModel {
@@ -84,7 +124,7 @@ export function deriveBookBrowser(
     totalPages,
     canPrevious: page > 1,
     canNext: page < totalPages,
+    paginationItems: buildPaginationItems(page, totalPages),
     emptyText: `${BOOK_STATUS_LABELS[activeStatus]}列表暂时为空`,
   };
 }
-

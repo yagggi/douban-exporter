@@ -188,7 +188,7 @@ describe("AppController", () => {
     });
 
     controller.selectBookStatus("collect");
-    controller.nextBookPage();
+    controller.goToBookPage(2);
     expect((await controller.viewModel()).bookBrowser).toMatchObject({
       activeStatus: "collect",
       page: 2,

@@ -69,5 +69,23 @@ describe("deriveBookBrowser", () => {
       ]),
     );
   });
-});
 
+  it("builds clickable page numbers with ellipses and the last page", () => {
+    const records = Array.from({ length: 201 }, (_, index) =>
+      makeBookRecord({ subjectId: `book-${index}`, status: "collect" }),
+    );
+
+    const model = deriveBookBrowser(records, "collect", 6, 20);
+
+    expect(
+      model.paginationItems.map((item) =>
+        item.kind === "page" ? item.page : "…",
+      ),
+    ).toEqual([1, "…", 4, 5, 6, 7, 8, "…", 11]);
+    expect(
+      model.paginationItems.find(
+        (item) => item.kind === "page" && item.page === 6,
+      ),
+    ).toMatchObject({ selected: true });
+  });
+});
