@@ -69,6 +69,7 @@ Manifest 仅申请以下能力：
 - 发出开始、暂停、继续、重新开始和导出命令。
 - 在用户手势中打开系统目录选择器。
 - 检查已保存目录句柄的权限；权限失效时重新请求授权。
+- 从 IndexedDB 读取稳定快照、生成 CSV，并直接调用 `chrome.downloads` 或 File System Access API 写入文件，避免把大型 CSV 通过运行时消息传递。
 - 订阅任务状态更新，但不承担抓取循环。
 
 #### Service Worker
@@ -79,7 +80,6 @@ Service Worker 负责 Chrome 生命周期与扩展 API 协调：
 - 创建、查询和关闭离屏文档。
 - 处理 `chrome.alarms` 健康检查。
 - 在 Chrome 启动时将上次仍处于 `checking_auth`、`discovering_lists` 或 `enriching_details` 的任务转换为可继续的 `paused` 状态，避免重启后未经用户确认立即访问豆瓣。
-- 通过 `chrome.downloads` 执行默认目录下载。
 
 Service Worker 不把任务状态保存在全局变量中。
 
