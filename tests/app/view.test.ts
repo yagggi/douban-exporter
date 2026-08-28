@@ -1,10 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { renderApp } from "../../src/app/view";
+import { deriveBookBrowser } from "../../src/app/book-browser";
 import { deriveViewModel } from "../../src/app/model";
-import { makeJob } from "../support/factories";
+import { makeBookRecord, makeJob } from "../support/factories";
 
 describe("renderApp", () => {
+  it("renders list discovery as visibly running indeterminate work", () => {
+    const root = document.createElement("div");
+    const model = deriveViewModel(
+      makeJob({ state: "discovering_lists", recordsDiscovered: 225 }),
+      225,
+      null,
+    );
+
+    renderApp(root, model, emptyHandlers());
+
+    const progress = root.querySelector("progress");
+    expect(progress?.hasAttribute("value")).toBe(false);
+    expect(root.textContent).toContain("运行状态运行中");
+    expect(root.textContent).toContain("列表扫描进行中，已发现 225 本");
+  });
+
   it("renders untrusted account text without interpreting HTML", () => {
     const root = document.createElement("div");
     const model = deriveViewModel(
@@ -40,6 +57,30 @@ describe("renderApp", () => {
 
     expect(resume).toHaveBeenCalledTimes(1);
   });
+
+  it("renders status tabs and detail completion badges", () => {
+    const root = document.createElement("div");
+    const selectBookStatus = vi.fn();
+    const handlers = { ...emptyHandlers(), selectBookStatus };
+    const model = {
+      ...deriveViewModel(makeJob({ state: "paused" }), 2, null),
+      bookBrowser: deriveBookBrowser(
+        [
+          makeBookRecord({ subjectId: "pending", detailStatus: "pending" }),
+          makeBookRecord({ subjectId: "complete", detailStatus: "complete" }),
+        ],
+        "collect",
+        1,
+      ),
+    };
+
+    renderApp(root, model, handlers);
+
+    expect(root.textContent).toContain("等待详情补全");
+    expect(root.textContent).toContain("详情已补全");
+    root.querySelector<HTMLButtonElement>('[data-status="wish"]')?.click();
+    expect(selectBookStatus).toHaveBeenCalledWith("wish");
+  });
 });
 
 function emptyHandlers() {
@@ -51,5 +92,8 @@ function emptyHandlers() {
     chooseDirectory: async () => {},
     useDefaultDirectory: async () => {},
     reset: async () => {},
+    selectBookStatus: () => {},
+    previousBookPage: () => {},
+    nextBookPage: () => {},
   };
 }

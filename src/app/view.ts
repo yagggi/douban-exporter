@@ -1,4 +1,6 @@
 import type { AppViewModel } from "./model";
+import type { BookStatus } from "../domain/types";
+import type { BookBrowserViewModel } from "./book-browser";
 
 export interface AppActionHandlers {
   start(): Promise<void>;
@@ -8,6 +10,9 @@ export interface AppActionHandlers {
   chooseDirectory(): Promise<void>;
   useDefaultDirectory(): Promise<void>;
   reset(): Promise<void>;
+  selectBookStatus(status: BookStatus): void;
+  previousBookPage(): void;
+  nextBookPage(): void;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -42,6 +47,104 @@ function actionButton(
   return button;
 }
 
+function renderBookBrowser(
+  model: BookBrowserViewModel,
+  handlers: AppActionHandlers,
+): HTMLElement {
+  const card = element("section", "card books-card");
+  card.append(
+    element("h2", undefined, "已获取的书籍"),
+    element(
+      "p",
+      "books-help",
+      "列表数据保存后立即出现；详情补全状态会随抓取进度更新。",
+    ),
+  );
+
+  const tabs = element("div", "book-tabs");
+  tabs.setAttribute("role", "tablist");
+  for (const tab of model.tabs) {
+    const button = element(
+      "button",
+      tab.selected ? "book-tab selected" : "book-tab",
+      `${tab.label} ${tab.count}`,
+    );
+    button.type = "button";
+    button.dataset.status = tab.status;
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-selected", String(tab.selected));
+    button.addEventListener("click", () => handlers.selectBookStatus(tab.status));
+    tabs.append(button);
+  }
+  card.append(tabs);
+
+  if (model.items.length === 0) {
+    card.append(element("p", "empty-books", model.emptyText));
+  } else {
+    const list = element("ul", "book-list");
+    for (const book of model.items) {
+      const item = element("li", "book-item");
+      const heading = element("div", "book-heading");
+      const title = element("a", "book-title", book.title);
+      title.href = book.subjectUrl;
+      title.target = "_blank";
+      title.rel = "noreferrer";
+      heading.append(
+        title,
+        element(
+          "span",
+          `detail-badge ${book.detailState}`,
+          book.detailStateText,
+        ),
+      );
+      item.append(
+        heading,
+        element(
+          "p",
+          "book-list-meta",
+          `${book.statusLabel} · ${book.markedAt} · ${book.ratingText}`,
+        ),
+      );
+      if (book.detailState === "complete") {
+        const metadata = element("dl", "book-metadata");
+        metadata.append(
+          detail("作者", book.authorsText),
+          detail("出版社", book.publisherText),
+          detail("出版时间", book.publishedAtText),
+          detail("ISBN", book.isbnText),
+          detail("页数", book.pagesText),
+        );
+        item.append(metadata);
+      } else {
+        item.append(
+          element("p", "pending-copy", "列表信息已保存，等待访问详情页补全。"),
+        );
+      }
+      list.append(item);
+    }
+    card.append(list);
+  }
+
+  const pagination = element("div", "pagination");
+  pagination.append(
+    actionButton(
+      "previousBookPage",
+      "上一页",
+      model.canPrevious,
+      async () => handlers.previousBookPage(),
+    ),
+    element("span", "page-indicator", `${model.page} / ${model.totalPages}`),
+    actionButton(
+      "nextBookPage",
+      "下一页",
+      model.canNext,
+      async () => handlers.nextBookPage(),
+    ),
+  );
+  card.append(pagination);
+  return card;
+}
+
 export function renderApp(
   root: HTMLElement,
   model: AppViewModel,
@@ -66,10 +169,18 @@ export function renderApp(
   );
   const progress = element("progress");
   progress.max = 100;
-  progress.value = model.progressPercent;
+  if (model.progressMode === "determinate") {
+    progress.value = model.progressPercent;
+  }
   progress.setAttribute("aria-label", "详情抓取进度");
+  const progressCaption = element(
+    "p",
+    "progress-caption",
+    model.progressCaption,
+  );
   const details = element("dl", "details-grid");
   details.append(
+    detail("运行状态", model.runStateText),
     detail("当前用户", model.accountText),
     detail("详情进度", model.progressText),
     detail("已保存记录", String(model.recordCount)),
@@ -79,7 +190,7 @@ export function renderApp(
     detail("当前页面", model.currentUrlText),
     detail("下次允许请求", model.nextRequestText),
   );
-  statusCard.append(statusHeader, progress, details);
+  statusCard.append(statusHeader, progress, progressCaption, details);
 
   const directoryCard = element("section", "card");
   directoryCard.append(
@@ -135,5 +246,16 @@ export function renderApp(
     undefined,
     "遇到验证码、403 或 429 时扩展会停止请求，请稍后手动继续。",
   );
-  root.replaceChildren(header, noticeArea, statusCard, directoryCard, actions, footer);
+  const bookBrowser = model.bookBrowser
+    ? renderBookBrowser(model.bookBrowser, handlers)
+    : null;
+  root.replaceChildren(
+    header,
+    noticeArea,
+    statusCard,
+    ...(bookBrowser ? [bookBrowser] : []),
+    directoryCard,
+    actions,
+    footer,
+  );
 }

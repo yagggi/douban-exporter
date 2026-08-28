@@ -4,10 +4,12 @@ import {
   resumeJobWithAuthCheck,
 } from "../domain/job-state";
 import type { BackgroundCommand } from "../runtime/messages";
+import type { BookStatus } from "../domain/types";
 import type { ExporterRepository } from "../storage/repository";
 import { serializeBooksToCsv } from "../export/csv";
 import { buildExportFilename } from "../export/filename";
 import { deriveViewModel, type AppViewModel } from "./model";
+import { deriveBookBrowser } from "./book-browser";
 
 interface RuntimeGateway {
   sendMessage(
@@ -51,6 +53,12 @@ export interface AppControllerDependencies {
 export class AppController {
   private noticeText = "";
   private errorText = "";
+  private activeBookStatus: BookStatus = "collect";
+  private readonly bookPages: Record<BookStatus, number> = {
+    collect: 1,
+    wish: 1,
+    do: 1,
+  };
 
   constructor(private readonly dependencies: AppControllerDependencies) {}
 
@@ -65,18 +73,42 @@ export class AppController {
   }
 
   async viewModel(): Promise<AppViewModel> {
-    const [job, recordCount, directoryHandle] = await Promise.all([
+    const [job, records, directoryHandle] = await Promise.all([
       this.dependencies.repository.getJob(),
-      this.dependencies.repository.countRecords(),
+      this.dependencies.repository.listRecordsSnapshot(),
       this.dependencies.repository.getDirectoryHandle(),
     ]);
-    return deriveViewModel(
+    const bookBrowser = deriveBookBrowser(
+      records,
+      this.activeBookStatus,
+      this.bookPages[this.activeBookStatus],
+    );
+    this.bookPages[this.activeBookStatus] = bookBrowser.page;
+    return {
+      ...deriveViewModel(
       job,
-      recordCount,
+      records.length,
       directoryHandle?.name ?? null,
       this.noticeText,
       this.errorText,
+      ),
+      bookBrowser,
+    };
+  }
+
+  selectBookStatus(status: BookStatus): void {
+    this.activeBookStatus = status;
+  }
+
+  previousBookPage(): void {
+    this.bookPages[this.activeBookStatus] = Math.max(
+      1,
+      this.bookPages[this.activeBookStatus] - 1,
     );
+  }
+
+  nextBookPage(): void {
+    this.bookPages[this.activeBookStatus] += 1;
   }
 
   private async send(command: BackgroundCommand): Promise<void> {
@@ -88,6 +120,10 @@ export class AppController {
 
   async start(): Promise<void> {
     this.clearMessages();
+    this.activeBookStatus = "collect";
+    this.bookPages.collect = 1;
+    this.bookPages.wish = 1;
+    this.bookPages.do = 1;
     await this.dependencies.repository.resetTaskData();
     await this.dependencies.repository.createJob(
       createExportJob(this.dependencies.now().toISOString()),

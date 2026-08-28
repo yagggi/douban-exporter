@@ -159,4 +159,50 @@ describe("AppController", () => {
     await expect(controller.exportCsv()).rejects.toThrow("目录写入权限");
     expect(downloads).toEqual([]);
   });
+
+  it("keeps independent pagination while switching book status tabs", async () => {
+    await repository.createJob(
+      makeJob({ state: "paused", resumeState: "discovering_lists" }),
+    );
+    await repository.commitListPage({
+      jobId: "current",
+      status: "collect",
+      records: Array.from({ length: 21 }, (_, index) =>
+        makeBookRecord({
+          subjectId: `collect-${index}`,
+          status: "collect",
+          title: `读过 ${index}`,
+        }),
+      ),
+      nextUrl: null,
+      committedAt: "2026-08-28T01:00:00.000Z",
+    });
+    await repository.commitListPage({
+      jobId: "current",
+      status: "wish",
+      records: [
+        makeBookRecord({ subjectId: "wish-1", status: "wish", title: "想读 1" }),
+      ],
+      nextUrl: null,
+      committedAt: "2026-08-28T01:01:00.000Z",
+    });
+
+    controller.selectBookStatus("collect");
+    controller.nextBookPage();
+    expect((await controller.viewModel()).bookBrowser).toMatchObject({
+      activeStatus: "collect",
+      page: 2,
+      totalPages: 2,
+    });
+
+    controller.selectBookStatus("wish");
+    expect((await controller.viewModel()).bookBrowser).toMatchObject({
+      activeStatus: "wish",
+      page: 1,
+      totalPages: 1,
+    });
+
+    controller.selectBookStatus("collect");
+    expect((await controller.viewModel()).bookBrowser?.page).toBe(2);
+  });
 });

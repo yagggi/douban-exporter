@@ -53,6 +53,18 @@ async function bootstrap(root: HTMLElement): Promise<void> {
     chooseDirectory: () => run(() => controller.chooseDirectory()),
     useDefaultDirectory: () => run(() => controller.useDefaultDirectory()),
     reset: () => run(() => controller.reset()),
+    selectBookStatus: (status) => {
+      controller.selectBookStatus(status);
+      void refresh();
+    },
+    previousBookPage: () => {
+      controller.previousBookPage();
+      void refresh();
+    },
+    nextBookPage: () => {
+      controller.nextBookPage();
+      void refresh();
+    },
   };
 
   chrome.runtime.onMessage.addListener((message: unknown) => {
