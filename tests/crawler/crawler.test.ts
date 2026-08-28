@@ -255,25 +255,34 @@ describe("Crawler", () => {
     const sleepStarted = new Promise<void>((resolve) => {
       signalSleepStarted = resolve;
     });
-    let releaseSleep = () => {};
+    let signalPaused = () => {};
+    const paused = new Promise<void>((resolve) => {
+      signalPaused = resolve;
+    });
+    let sleepCallCount = 0;
     harness = await makeCrawler({
       pages,
-      sleepImplementation: async (_milliseconds, signal) =>
-        new Promise<void>((resolve) => {
-          releaseSleep = resolve;
+      sleepImplementation: async (_milliseconds, signal) => {
+        sleepCallCount += 1;
+        signalSleepStarted();
+        if (sleepCallCount > 1) return;
+        await new Promise<void>((resolve) => {
           signal?.addEventListener("abort", () => resolve(), { once: true });
-          signalSleepStarted();
-        }),
+        });
+      },
+      onPublish(job) {
+        if (job.state === "paused") signalPaused();
+      },
     });
 
     const running = harness.crawler.run();
     await sleepStarted;
     harness.crawler.requestPause();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await paused;
+    await running;
 
     expect((await harness.repository.getJob())?.state).toBe("paused");
-    releaseSleep();
-    await running;
+    expect(harness.observedSleeps).toEqual([30_000]);
     expect(harness.requestedUrls).toEqual([MINE_URL]);
   });
 
