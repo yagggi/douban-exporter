@@ -6,6 +6,22 @@ import { deriveViewModel } from "../../src/app/model";
 import { makeBookRecord, makeJob } from "../support/factories";
 
 describe("renderApp", () => {
+  it("orders controls before the fetched-books section", () => {
+    const root = document.createElement("div");
+    const model = {
+      ...deriveViewModel(makeJob({ state: "paused" }), 1, null),
+      bookBrowser: deriveBookBrowser([makeBookRecord()], "collect", 1),
+    };
+
+    renderApp(root, model, emptyHandlers());
+
+    expect(
+      [...root.querySelectorAll("section h2")].map(
+        (heading) => heading.textContent,
+      ),
+    ).toEqual(["任务状态", "保存位置", "操作", "已获取的书籍"]);
+  });
+
   it("renders list discovery as visibly running indeterminate work", () => {
     const root = document.createElement("div");
     const model = deriveViewModel(

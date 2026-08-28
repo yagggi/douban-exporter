@@ -253,9 +253,9 @@ export function renderApp(
     header,
     noticeArea,
     statusCard,
-    ...(bookBrowser ? [bookBrowser] : []),
     directoryCard,
     actions,
+    ...(bookBrowser ? [bookBrowser] : []),
     footer,
   );
 }
