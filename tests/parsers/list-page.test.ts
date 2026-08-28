@@ -7,6 +7,31 @@ import { parseListPage } from "../../src/parsers/list-page";
 import { parseHtml } from "../../src/parsers/text";
 
 describe("parseListPage", () => {
+  it("parses the current subject-item list structure used by Douban", async () => {
+    const html = await readFile(
+      "tests/fixtures/list-current-subject-item.html",
+      "utf8",
+    );
+
+    const result = parseListPage(
+      parseHtml(html),
+      "collect",
+      "2026-08-28T00:00:00.000Z",
+    );
+
+    expect(result.records[0]).toMatchObject({
+      subjectId: "10524274",
+      status: "collect",
+      title: "历史文物趣谈",
+      markedAt: "2022-10-24",
+      myRating: 4,
+      shortReview: "历史掌故类的",
+    });
+    expect(result.nextUrl).toBe(
+      "https://book.douban.com/people/example/collect?start=15&sort=time&rating=all&filter=all&mode=grid",
+    );
+  });
+
   it("extracts status, rating, comment and fallback review time", async () => {
     const html = await readFile("tests/fixtures/list-collect.html", "utf8");
     const result = parseListPage(
@@ -67,4 +92,3 @@ describe("parseListPage", () => {
     ).toThrow(PageStructureError);
   });
 });
-

@@ -75,9 +75,9 @@ function parseListItem(
   status: BookStatus,
   fetchedAt: string,
 ): ParsedListRecord {
-  const link = item.querySelector<HTMLAnchorElement>(
-    "h2 a[href*='/subject/'], a[href*='/subject/']",
-  );
+  const link =
+    item.querySelector<HTMLAnchorElement>("h2 a[href*='/subject/']") ??
+    item.querySelector<HTMLAnchorElement>("a[href*='/subject/']");
   const subjectMatch = link?.getAttribute("href")?.match(SUBJECT_PATTERN);
   const subjectId = subjectMatch?.[1];
   const title = normalizeInlineText(link?.textContent ?? "");
@@ -130,7 +130,9 @@ export function parseListPage(
   fetchedAt: string,
 ): ParsedListPage {
   const items = [
-    ...document.querySelectorAll("li.item, [data-subject-id]"),
+    ...document.querySelectorAll(
+      "li.subject-item, li.item, [data-subject-id]",
+    ),
   ];
   if (items.length === 0) {
     const explicitlyEmpty = EMPTY_LIST_PATTERN.test(document.body.textContent ?? "");
@@ -146,4 +148,3 @@ export function parseListPage(
     explicitlyEmpty: false,
   };
 }
-
