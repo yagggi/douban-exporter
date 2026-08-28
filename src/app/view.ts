@@ -263,6 +263,10 @@ class BookBrowserView {
       return card.root;
     });
     syncChildren(this.list, cards);
+    const visibleBookIds = new Set(model.items.map((item) => item.subjectId));
+    for (const subjectId of this.bookNodes.keys()) {
+      if (!visibleBookIds.has(subjectId)) this.bookNodes.delete(subjectId);
+    }
     setHidden(this.list, cards.length === 0);
     setText(this.empty, model.emptyText);
     setHidden(this.empty, cards.length !== 0);
@@ -271,6 +275,22 @@ class BookBrowserView {
       item.kind === "page" ? this.page(item) : this.ellipsis(item),
     );
     syncChildren(this.pageNumbers, pageItems);
+    const visiblePages = new Set(
+      model.paginationItems.flatMap((item) =>
+        item.kind === "page" ? [item.page] : [],
+      ),
+    );
+    for (const page of this.pageNodes.keys()) {
+      if (!visiblePages.has(page)) this.pageNodes.delete(page);
+    }
+    const visibleEllipses = new Set(
+      model.paginationItems.flatMap((item) =>
+        item.kind === "ellipsis" ? [item.key] : [],
+      ),
+    );
+    for (const key of this.ellipsisNodes.keys()) {
+      if (!visibleEllipses.has(key)) this.ellipsisNodes.delete(key);
+    }
     this.previous.update("上一页", model.canPrevious);
     this.next.update("下一页", model.canNext);
   }

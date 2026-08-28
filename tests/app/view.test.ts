@@ -148,6 +148,7 @@ describe("renderApp", () => {
       handlers,
     );
     const resetButton = root.querySelector('[data-action="reset"]');
+    expect(resetButton).not.toBeNull();
 
     renderApp(
       root,
@@ -156,6 +157,104 @@ describe("renderApp", () => {
     );
 
     expect(root.querySelector('[data-action="reset"]')).toBe(resetButton);
+  });
+
+  it("reorders two keyed book cards without recreating either node", () => {
+    const root = document.createElement("div");
+    const handlers = emptyHandlers();
+    const first = makeBookRecord({ subjectId: "first", title: "第一本" });
+    const second = makeBookRecord({ subjectId: "second", title: "第二本" });
+    const base = deriveViewModel(makeJob({ state: "paused" }), 2, null);
+    renderApp(
+      root,
+      { ...base, bookBrowser: deriveBookBrowser([first, second], "collect", 1) },
+      handlers,
+    );
+    const firstNode = root.querySelector('[data-subject-id="first"]');
+    const secondNode = root.querySelector('[data-subject-id="second"]');
+    expect(firstNode).not.toBeNull();
+    expect(secondNode).not.toBeNull();
+
+    renderApp(
+      root,
+      { ...base, bookBrowser: deriveBookBrowser([second, first], "collect", 1) },
+      handlers,
+    );
+
+    expect([...root.querySelectorAll(".book-item")]).toEqual([
+      secondNode,
+      firstNode,
+    ]);
+  });
+
+  it("keeps tab and persistent page-number nodes stable", () => {
+    const root = document.createElement("div");
+    const handlers = emptyHandlers();
+    const records = Array.from({ length: 201 }, (_, index) =>
+      makeBookRecord({ subjectId: `book-${index}` }),
+    );
+    const base = deriveViewModel(makeJob({ state: "paused" }), records.length, null);
+    renderApp(
+      root,
+      { ...base, bookBrowser: deriveBookBrowser(records, "collect", 6) },
+      handlers,
+    );
+    const collectTab = root.querySelector('[data-status="collect"]');
+    const lastPage = root.querySelector('[data-page="11"]');
+    expect(collectTab).not.toBeNull();
+    expect(lastPage).not.toBeNull();
+
+    renderApp(
+      root,
+      { ...base, bookBrowser: deriveBookBrowser(records, "collect", 7) },
+      handlers,
+    );
+
+    expect(root.querySelector('[data-status="collect"]')).toBe(collectTab);
+    expect(root.querySelector('[data-page="11"]')).toBe(lastPage);
+  });
+
+  it("uses only the latest handlers without duplicate button listeners", () => {
+    const root = document.createElement("div");
+    const firstReset = vi.fn(async () => {});
+    const secondReset = vi.fn(async () => {});
+    const model = deriveViewModel(makeJob({ state: "paused" }), 1, null);
+    renderApp(root, model, { ...emptyHandlers(), reset: firstReset });
+    renderApp(root, model, { ...emptyHandlers(), reset: secondReset });
+
+    root.querySelector<HTMLButtonElement>('[data-action="reset"]')?.click();
+
+    expect(firstReset).not.toHaveBeenCalled();
+    expect(secondReset).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases off-page book card nodes instead of caching every visited page", () => {
+    const root = document.createElement("div");
+    const handlers = emptyHandlers();
+    const records = Array.from({ length: 21 }, (_, index) =>
+      makeBookRecord({ subjectId: `book-${index}` }),
+    );
+    const base = deriveViewModel(makeJob({ state: "paused" }), records.length, null);
+    renderApp(
+      root,
+      { ...base, bookBrowser: deriveBookBrowser(records, "collect", 1) },
+      handlers,
+    );
+    const original = root.querySelector('[data-subject-id="book-0"]');
+    expect(original).not.toBeNull();
+
+    renderApp(
+      root,
+      { ...base, bookBrowser: deriveBookBrowser(records, "collect", 2) },
+      handlers,
+    );
+    renderApp(
+      root,
+      { ...base, bookBrowser: deriveBookBrowser(records, "collect", 1) },
+      handlers,
+    );
+
+    expect(root.querySelector('[data-subject-id="book-0"]')).not.toBe(original);
   });
 
   it("updates a keyed book card without replacing its node", () => {
