@@ -2,6 +2,8 @@
 
 一个本地运行的 Chrome 扩展，将当前豆瓣账号标记为“读过”“想读”“在读”的图书导出为 CSV。扩展使用 Chrome 已有的豆瓣登录会话，不读取、展示或上传 Cookie 值。
 
+[下载最新 Release](https://github.com/yagggi/douban-exporter/releases/latest)
+
 ## 导出字段
 
 CSV 固定包含以下 14 列：
@@ -34,18 +36,42 @@ CSV 固定包含以下 14 列：
 
 扩展不申请 `cookies`、`storage` 或所有网站访问权限。任务和图书数据只保存在扩展自己的本机 IndexedDB；没有遥测、远程服务或远程脚本。
 
-## 构建
+## 安装方式一：下载 Release
+
+适合只想使用扩展、不需要修改代码的用户。
+
+1. 打开 [Releases](https://github.com/yagggi/douban-exporter/releases)。
+2. 下载 `douban-book-exporter-vX.Y.Z.zip`，不要下载 GitHub 自动生成的 `Source code` 压缩包。
+3. 将 ZIP 解压到一个长期保留的目录；安装后不要移动或删除该目录。
+4. 打开 `chrome://extensions`。
+5. 开启右上角“开发者模式”。
+6. 点击“加载已解压的扩展程序”，选择刚刚解压的目录。
+7. 在普通豆瓣标签页登录，然后点击工具栏中的扩展图标。
+
+Release 同时提供 `.sha256` 文件，可用下面的命令校验下载内容：
+
+```bash
+shasum -a 256 -c douban-book-exporter-vX.Y.Z.zip.sha256
+```
+
+Release ZIP 是可直接加载的已构建扩展，但不是 Chrome Web Store 的一键安装包；仍需通过开发者模式加载。
+
+## 安装方式二：从源码构建
+
+适合希望审查源码、参与开发或使用尚未发布版本的用户。
 
 需要 Node.js 20.19 以上，或 Node.js 22.12 以上。
 
 ```bash
-npm install
+git clone https://github.com/yagggi/douban-exporter.git
+cd douban-exporter
+npm ci
 npm run check
 ```
 
 构建产物位于 `dist/`。`npm run check` 会运行全部测试、TypeScript 类型检查、生产构建和扩展产物安全校验。
 
-## 在 Chrome 中安装
+随后安装构建产物：
 
 1. 打开 `chrome://extensions`。
 2. 开启右上角“开发者模式”。
@@ -55,6 +81,53 @@ npm run check
 6. 点击 Chrome 工具栏中的“豆瓣图书导出器”图标。
 
 最低支持 Chrome 116。
+
+## 开发调试
+
+安装依赖并首次构建：
+
+```bash
+npm ci
+npm run build
+```
+
+开发时可以持续构建：
+
+```bash
+npm run build -- --watch
+```
+
+在 `chrome://extensions` 加载 `dist/`。代码重新构建后，点击扩展卡片上的“重新加载”，再刷新管理页。提交前运行：
+
+```bash
+npm run check
+```
+
+维护者可以在本地生成与 Release 相同的 ZIP 和 SHA-256：
+
+```bash
+npm run package:release
+```
+
+产物写入 `artifacts/`。推送与 `manifest.json` 版本一致的 `vX.Y.Z` tag 后，GitHub Actions 会自动运行完整验证并创建 Release。
+
+## 更新扩展
+
+### 使用 Release 安装的用户
+
+1. 下载并解压新的 Release ZIP。
+2. 用新目录内容替换旧版本文件，或在 `chrome://extensions` 删除旧版本后重新加载新目录。
+3. 点击“重新加载”。扩展的 IndexedDB 任务数据通常会随同一个扩展 ID 保留；若改用不同目录导致 ID 变化，请先导出已有数据。
+
+### 从源码构建的用户
+
+```bash
+git pull
+npm ci
+npm run check
+```
+
+然后在 `chrome://extensions` 点击“重新加载”。
 
 ## 使用
 

@@ -1,0 +1,40 @@
+name: Release extension
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test, build, and package
+        run: npm run package:release
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            artifacts/douban-book-exporter-"$GITHUB_REF_NAME".zip \
+            artifacts/douban-book-exporter-"$GITHUB_REF_NAME".zip.sha256 \
+            --verify-tag \
+            --title "豆瓣图书导出器 $GITHUB_REF_NAME" \
+            --generate-notes \
+            --notes "下载 douban-book-exporter-$GITHUB_REF_NAME.zip，解压后在 chrome://extensions 中选择‘加载已解压的扩展程序’。"

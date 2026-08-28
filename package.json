@@ -8,6 +8,8 @@
     "build": "vite build",
     "validate:dist": "node scripts/validate-dist.mjs",
     "check": "npm test && npm run typecheck && npm run build && npm run validate:dist",
+    "package:archive": "node scripts/package-release.mjs",
+    "package:release": "npm run check && npm run package:archive",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
