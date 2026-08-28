@@ -134,6 +134,109 @@ describe("renderApp", () => {
     root.querySelector<HTMLButtonElement>('[data-page="11"]')?.click();
     expect(goToBookPage).toHaveBeenCalledWith(11);
   });
+
+  it("keeps action button nodes stable across model updates", () => {
+    const root = document.createElement("div");
+    const handlers = emptyHandlers();
+    renderApp(
+      root,
+      deriveViewModel(
+        makeJob({ state: "paused", resumeState: "discovering_lists" }),
+        1,
+        null,
+      ),
+      handlers,
+    );
+    const resetButton = root.querySelector('[data-action="reset"]');
+
+    renderApp(
+      root,
+      deriveViewModel(makeJob({ state: "completed" }), 1, null),
+      handlers,
+    );
+
+    expect(root.querySelector('[data-action="reset"]')).toBe(resetButton);
+  });
+
+  it("updates a keyed book card without replacing its node", () => {
+    const root = document.createElement("div");
+    const handlers = emptyHandlers();
+    const pending = makeBookRecord({
+      subjectId: "same-book",
+      title: "奇迹集",
+      detailStatus: "pending",
+    });
+    renderApp(
+      root,
+      {
+        ...deriveViewModel(makeJob({ state: "enriching_details" }), 1, null),
+        bookBrowser: deriveBookBrowser([pending], "collect", 1),
+      },
+      handlers,
+    );
+    const originalCard = root.querySelector(".book-item");
+
+    renderApp(
+      root,
+      {
+        ...deriveViewModel(makeJob({ state: "paused" }), 1, null),
+        bookBrowser: deriveBookBrowser(
+          [
+            makeBookRecord({
+              ...pending,
+              subjectId: "same-book",
+              title: "奇迹集",
+              detailStatus: "complete",
+              isbn: "9787218076690",
+            }),
+          ],
+          "collect",
+          1,
+        ),
+      },
+      handlers,
+    );
+
+    expect(root.querySelector(".book-item")).toBe(originalCard);
+    expect(originalCard?.textContent).toContain("详情已补全");
+  });
+
+  it("preserves the selected book text node when unrelated fields update", () => {
+    const root = document.createElement("div");
+    const handlers = emptyHandlers();
+    const record = makeBookRecord({ title: "奇迹集" });
+    const firstModel = {
+      ...deriveViewModel(makeJob({ state: "enriching_details" }), 1, null),
+      bookBrowser: deriveBookBrowser([record], "collect", 1),
+    };
+    renderApp(root, firstModel, handlers);
+    const title = root.querySelector(".book-title");
+    const textNode = title?.firstChild;
+    const selection = window.getSelection();
+    if (!(textNode instanceof Text) || !selection) {
+      throw new Error("测试环境无法建立标题选区");
+    }
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    renderApp(
+      root,
+      {
+        ...deriveViewModel(
+          makeJob({ state: "enriching_details", requestCount: 9 }),
+          1,
+          null,
+        ),
+        bookBrowser: deriveBookBrowser([record], "collect", 1),
+      },
+      handlers,
+    );
+
+    expect(root.querySelector(".book-title")?.firstChild).toBe(textNode);
+    selection.removeAllRanges();
+  });
 });
 
 function emptyHandlers() {

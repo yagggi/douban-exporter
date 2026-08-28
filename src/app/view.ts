@@ -1,6 +1,10 @@
-import type { AppViewModel } from "./model";
 import type { BookStatus } from "../domain/types";
-import type { BookBrowserViewModel } from "./book-browser";
+import type {
+  BookBrowserViewModel,
+  BookItemViewModel,
+  PaginationItem,
+} from "./book-browser";
+import type { AppViewModel } from "./model";
 
 export interface AppActionHandlers {
   start(): Promise<void>;
@@ -27,265 +31,437 @@ function element<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-function detail(label: string, value: string): HTMLElement {
-  const row = element("div", "detail-row");
-  row.append(element("dt", undefined, label), element("dd", undefined, value));
-  return row;
+function setText(node: Node, value: string): void {
+  if (node.textContent !== value) node.textContent = value;
 }
 
-function actionButton(
-  action: keyof AppActionHandlers,
-  label: string,
-  enabled: boolean,
-  handler: () => Promise<void>,
-  primary = false,
-): HTMLButtonElement {
-  const button = element("button", primary ? "button primary" : "button", label);
-  button.type = "button";
-  button.dataset.action = action;
-  button.disabled = !enabled;
-  button.addEventListener("click", () => void handler());
-  return button;
+function setClassName(node: HTMLElement, value: string): void {
+  if (node.className !== value) node.className = value;
 }
 
-function renderBookBrowser(
-  model: BookBrowserViewModel,
-  handlers: AppActionHandlers,
-): HTMLElement {
-  const card = element("section", "card books-card");
-  card.append(
-    element("h2", undefined, "已获取的书籍"),
-    element(
-      "p",
-      "books-help",
-      "列表数据保存后立即出现；详情补全状态会随抓取进度更新。",
-    ),
+function setHidden(node: HTMLElement, hidden: boolean): void {
+  if (node.hidden !== hidden) node.hidden = hidden;
+}
+
+function syncChildren(parent: HTMLElement, desired: readonly Node[]): void {
+  for (const [index, node] of desired.entries()) {
+    const current = parent.childNodes[index] ?? null;
+    if (current !== node) parent.insertBefore(node, current);
+  }
+  while (parent.childNodes.length > desired.length) {
+    parent.lastChild?.remove();
+  }
+}
+
+interface DetailView {
+  root: HTMLElement;
+  value: HTMLElement;
+}
+
+function createDetail(label: string): DetailView {
+  const root = element("div", "detail-row");
+  const value = element("dd");
+  root.append(element("dt", undefined, label), value);
+  return { root, value };
+}
+
+class ActionButtonView {
+  readonly root: HTMLButtonElement;
+
+  constructor(
+    action: keyof AppActionHandlers,
+    primary: boolean,
+    onClick: () => void | Promise<void>,
+  ) {
+    this.root = element("button", primary ? "button primary" : "button");
+    this.root.type = "button";
+    this.root.dataset.action = action;
+    this.root.addEventListener("click", () => void onClick());
+  }
+
+  update(label: string, enabled: boolean): void {
+    setText(this.root, label);
+    this.root.disabled = !enabled;
+  }
+}
+
+class BookCardView {
+  readonly root = element("li", "book-item");
+  private readonly title = element("a", "book-title");
+  private readonly badge = element("span", "detail-badge");
+  private readonly listMeta = element("p", "book-list-meta");
+  private readonly review = element("blockquote", "book-review");
+  private readonly reviewText = element("p");
+  private readonly metadata = element("dl", "book-metadata");
+  private readonly pendingCopy = element(
+    "p",
+    "pending-copy",
+    "列表信息已保存，等待访问详情页补全。",
   );
+  private readonly author = createDetail("作者");
+  private readonly publisher = createDetail("出版社");
+  private readonly publishedAt = createDetail("出版时间");
+  private readonly isbn = createDetail("ISBN");
+  private readonly pages = createDetail("页数");
 
-  const tabs = element("div", "book-tabs");
-  tabs.setAttribute("role", "tablist");
-  for (const tab of model.tabs) {
-    const button = element(
-      "button",
-      tab.selected ? "book-tab selected" : "book-tab",
-      `${tab.label} ${tab.count}`,
+  constructor(subjectId: string) {
+    this.root.dataset.subjectId = subjectId;
+    this.title.target = "_blank";
+    this.title.rel = "noreferrer";
+    const heading = element("div", "book-heading");
+    heading.append(this.title, this.badge);
+    this.review.append(
+      element("span", "book-review-label", "我的短评"),
+      this.reviewText,
     );
-    button.type = "button";
-    button.dataset.status = tab.status;
-    button.setAttribute("role", "tab");
-    button.setAttribute("aria-selected", String(tab.selected));
-    button.addEventListener("click", () => handlers.selectBookStatus(tab.status));
-    tabs.append(button);
-  }
-  card.append(tabs);
-
-  if (model.items.length === 0) {
-    card.append(element("p", "empty-books", model.emptyText));
-  } else {
-    const list = element("ul", "book-list");
-    for (const book of model.items) {
-      const item = element("li", "book-item");
-      const heading = element("div", "book-heading");
-      const title = element("a", "book-title", book.title);
-      title.href = book.subjectUrl;
-      title.target = "_blank";
-      title.rel = "noreferrer";
-      heading.append(
-        title,
-        element(
-          "span",
-          `detail-badge ${book.detailState}`,
-          book.detailStateText,
-        ),
-      );
-      item.append(
-        heading,
-        element(
-          "p",
-          "book-list-meta",
-          `${book.statusLabel} · ${book.markedAt} · ${book.ratingText}`,
-        ),
-      );
-      if (book.hasShortReview) {
-        const review = element("blockquote", "book-review");
-        review.append(
-          element("span", "book-review-label", "我的短评"),
-          element("p", undefined, book.shortReviewText),
-        );
-        item.append(review);
-      }
-      if (book.detailState === "complete") {
-        const metadata = element("dl", "book-metadata");
-        metadata.append(
-          detail("作者", book.authorsText),
-          detail("出版社", book.publisherText),
-          detail("出版时间", book.publishedAtText),
-          detail("ISBN", book.isbnText),
-          detail("页数", book.pagesText),
-        );
-        item.append(metadata);
-      } else {
-        item.append(
-          element("p", "pending-copy", "列表信息已保存，等待访问详情页补全。"),
-        );
-      }
-      list.append(item);
-    }
-    card.append(list);
-  }
-
-  const pagination = element("div", "pagination");
-  const pageNumbers = element("div", "page-numbers");
-  pageNumbers.setAttribute("aria-label", "书籍列表页码");
-  for (const item of model.paginationItems) {
-    if (item.kind === "ellipsis") {
-      pageNumbers.append(element("span", "pagination-ellipsis", "…"));
-      continue;
-    }
-    const pageButton = element(
-      "button",
-      item.selected ? "page-number selected" : "page-number",
-      String(item.page),
+    this.metadata.append(
+      this.author.root,
+      this.publisher.root,
+      this.publishedAt.root,
+      this.isbn.root,
+      this.pages.root,
     );
-    pageButton.type = "button";
-    pageButton.dataset.page = String(item.page);
-    pageButton.setAttribute("aria-label", `跳转到第 ${item.page} 页`);
-    if (item.selected) {
-      pageButton.setAttribute("aria-current", "page");
-    }
-    pageButton.addEventListener("click", () => handlers.goToBookPage(item.page));
-    pageNumbers.append(pageButton);
+    this.root.append(
+      heading,
+      this.listMeta,
+      this.review,
+      this.metadata,
+      this.pendingCopy,
+    );
   }
-  pagination.append(
-    actionButton(
+
+  update(book: BookItemViewModel): void {
+    setText(this.title, book.title);
+    if (this.title.href !== book.subjectUrl) this.title.href = book.subjectUrl;
+    setClassName(this.badge, `detail-badge ${book.detailState}`);
+    setText(this.badge, book.detailStateText);
+    setText(
+      this.listMeta,
+      `${book.statusLabel} · ${book.markedAt} · ${book.ratingText}`,
+    );
+    setHidden(this.review, !book.hasShortReview);
+    if (book.hasShortReview) setText(this.reviewText, book.shortReviewText);
+
+    const completed = book.detailState === "complete";
+    setHidden(this.metadata, !completed);
+    setHidden(this.pendingCopy, completed);
+    if (completed) {
+      setText(this.author.value, book.authorsText);
+      setText(this.publisher.value, book.publisherText);
+      setText(this.publishedAt.value, book.publishedAtText);
+      setText(this.isbn.value, book.isbnText);
+      setText(this.pages.value, book.pagesText);
+    }
+  }
+}
+
+class BookBrowserView {
+  readonly root = element("section", "card books-card");
+  private readonly tabs = element("div", "book-tabs");
+  private readonly empty = element("p", "empty-books");
+  private readonly list = element("ul", "book-list");
+  private readonly pagination = element("div", "pagination");
+  private readonly pageNumbers = element("div", "page-numbers");
+  private readonly previous: ActionButtonView;
+  private readonly next: ActionButtonView;
+  private readonly tabNodes = new Map<BookStatus, HTMLButtonElement>();
+  private readonly bookNodes = new Map<string, BookCardView>();
+  private readonly pageNodes = new Map<number, HTMLButtonElement>();
+  private readonly ellipsisNodes = new Map<string, HTMLElement>();
+
+  constructor(private readonly handlers: () => AppActionHandlers) {
+    this.root.append(
+      element("h2", undefined, "已获取的书籍"),
+      element(
+        "p",
+        "books-help",
+        "列表数据保存后立即出现；详情补全状态会随抓取进度更新。",
+      ),
+    );
+    this.tabs.setAttribute("role", "tablist");
+    this.pageNumbers.setAttribute("aria-label", "书籍列表页码");
+    this.previous = new ActionButtonView(
       "previousBookPage",
-      "上一页",
-      model.canPrevious,
-      async () => handlers.previousBookPage(),
-    ),
-    pageNumbers,
-    actionButton(
+      false,
+      () => this.handlers().previousBookPage(),
+    );
+    this.next = new ActionButtonView(
       "nextBookPage",
-      "下一页",
-      model.canNext,
-      async () => handlers.nextBookPage(),
-    ),
-  );
-  card.append(pagination);
-  return card;
+      false,
+      () => this.handlers().nextBookPage(),
+    );
+    this.pagination.append(
+      this.previous.root,
+      this.pageNumbers,
+      this.next.root,
+    );
+    this.root.append(this.tabs, this.empty, this.list, this.pagination);
+  }
+
+  private tab(status: BookStatus): HTMLButtonElement {
+    const existing = this.tabNodes.get(status);
+    if (existing) return existing;
+    const button = element("button", "book-tab");
+    button.type = "button";
+    button.dataset.status = status;
+    button.setAttribute("role", "tab");
+    button.addEventListener("click", () =>
+      this.handlers().selectBookStatus(status),
+    );
+    this.tabNodes.set(status, button);
+    return button;
+  }
+
+  private book(model: BookItemViewModel): BookCardView {
+    const existing = this.bookNodes.get(model.subjectId);
+    if (existing) return existing;
+    const book = new BookCardView(model.subjectId);
+    this.bookNodes.set(model.subjectId, book);
+    return book;
+  }
+
+  private page(item: Extract<PaginationItem, { kind: "page" }>): HTMLElement {
+    let button = this.pageNodes.get(item.page);
+    if (!button) {
+      button = element("button", "page-number", String(item.page));
+      button.type = "button";
+      button.dataset.page = String(item.page);
+      button.setAttribute("aria-label", `跳转到第 ${item.page} 页`);
+      button.addEventListener("click", () =>
+        this.handlers().goToBookPage(item.page),
+      );
+      this.pageNodes.set(item.page, button);
+    }
+    setClassName(button, item.selected ? "page-number selected" : "page-number");
+    if (item.selected) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+    return button;
+  }
+
+  private ellipsis(item: Extract<PaginationItem, { kind: "ellipsis" }>): HTMLElement {
+    let node = this.ellipsisNodes.get(item.key);
+    if (!node) {
+      node = element("span", "pagination-ellipsis", "…");
+      this.ellipsisNodes.set(item.key, node);
+    }
+    return node;
+  }
+
+  update(model: BookBrowserViewModel): void {
+    const tabs = model.tabs.map((tab) => {
+      const button = this.tab(tab.status);
+      setText(button, `${tab.label} ${tab.count}`);
+      setClassName(button, tab.selected ? "book-tab selected" : "book-tab");
+      button.setAttribute("aria-selected", String(tab.selected));
+      return button;
+    });
+    syncChildren(this.tabs, tabs);
+
+    const cards = model.items.map((item) => {
+      const card = this.book(item);
+      card.update(item);
+      return card.root;
+    });
+    syncChildren(this.list, cards);
+    setHidden(this.list, cards.length === 0);
+    setText(this.empty, model.emptyText);
+    setHidden(this.empty, cards.length !== 0);
+
+    const pageItems = model.paginationItems.map((item) =>
+      item.kind === "page" ? this.page(item) : this.ellipsis(item),
+    );
+    syncChildren(this.pageNumbers, pageItems);
+    this.previous.update("上一页", model.canPrevious);
+    this.next.update("下一页", model.canNext);
+  }
 }
+
+class AppView {
+  private handlers: AppActionHandlers;
+  private readonly status = element("span", "status");
+  private readonly progress = element("progress");
+  private readonly progressCaption = element("p", "progress-caption");
+  private readonly runState = createDetail("运行状态");
+  private readonly account = createDetail("当前用户");
+  private readonly detailProgress = createDetail("详情进度");
+  private readonly recordCount = createDetail("已保存记录");
+  private readonly requestCount = createDetail("豆瓣请求数");
+  private readonly warningCount = createDetail("警告数");
+  private readonly failureCount = createDetail("失败数");
+  private readonly currentUrl = createDetail("当前页面");
+  private readonly nextRequest = createDetail("下次允许请求");
+  private readonly directory = element("p", "directory");
+  private readonly notice = element("p", "message notice");
+  private readonly error = element("p", "message error");
+  private readonly partial = element(
+    "p",
+    "message warning",
+    "当前导出会标记为 partial，数据尚不完整。",
+  );
+  private readonly start: ActionButtonView;
+  private readonly pause: ActionButtonView;
+  private readonly resume: ActionButtonView;
+  private readonly exportCsv: ActionButtonView;
+  private readonly reset: ActionButtonView;
+  private readonly bookBrowser: BookBrowserView;
+
+  constructor(root: HTMLElement, handlers: AppActionHandlers) {
+    this.handlers = handlers;
+    const header = element("header", "hero");
+    header.append(
+      element("p", "eyebrow", "本地、低频、可恢复"),
+      element("h1", undefined, "豆瓣图书导出器"),
+      element(
+        "p",
+        "subtitle",
+        "导出读过、想读和在读的图书，不读取或上传 Cookie。",
+      ),
+    );
+
+    const noticeArea = element("div", "message-stack");
+    this.error.setAttribute("role", "alert");
+    noticeArea.append(this.notice, this.error, this.partial);
+
+    const statusCard = element("section", "card status-card");
+    const statusHeader = element("div", "section-heading");
+    statusHeader.append(element("h2", undefined, "任务状态"), this.status);
+    this.progress.max = 100;
+    this.progress.setAttribute("aria-label", "详情抓取进度");
+    const details = element("dl", "details-grid");
+    details.append(
+      this.runState.root,
+      this.account.root,
+      this.detailProgress.root,
+      this.recordCount.root,
+      this.requestCount.root,
+      this.warningCount.root,
+      this.failureCount.root,
+      this.currentUrl.root,
+      this.nextRequest.root,
+    );
+    statusCard.append(
+      statusHeader,
+      this.progress,
+      this.progressCaption,
+      details,
+    );
+
+    const directoryCard = element("section", "card");
+    directoryCard.append(element("h2", undefined, "保存位置"), this.directory);
+    const directoryActions = element("div", "actions secondary-actions");
+    const chooseDirectory = new ActionButtonView(
+      "chooseDirectory",
+      false,
+      () => this.handlers.chooseDirectory(),
+    );
+    const useDefaultDirectory = new ActionButtonView(
+      "useDefaultDirectory",
+      false,
+      () => this.handlers.useDefaultDirectory(),
+    );
+    chooseDirectory.update("选择目录", true);
+    useDefaultDirectory.update("使用默认下载目录", true);
+    directoryActions.append(
+      chooseDirectory.root,
+      useDefaultDirectory.root,
+    );
+    directoryCard.append(directoryActions);
+
+    const actions = element("section", "card action-card");
+    actions.append(element("h2", undefined, "操作"));
+    const buttons = element("div", "actions");
+    this.start = new ActionButtonView("start", true, () => this.handlers.start());
+    this.pause = new ActionButtonView("pause", false, () => this.handlers.pause());
+    this.resume = new ActionButtonView("resume", true, () => this.handlers.resume());
+    this.exportCsv = new ActionButtonView(
+      "exportCsv",
+      false,
+      () => this.handlers.exportCsv(),
+    );
+    this.reset = new ActionButtonView("reset", false, () => this.handlers.reset());
+    buttons.append(
+      this.start.root,
+      this.pause.root,
+      this.resume.root,
+      this.exportCsv.root,
+      this.reset.root,
+    );
+    actions.append(buttons);
+
+    this.bookBrowser = new BookBrowserView(() => this.handlers);
+    const footer = element(
+      "footer",
+      undefined,
+      "遇到验证码、403 或 429 时扩展会停止请求，请稍后手动继续。",
+    );
+    root.replaceChildren(
+      header,
+      noticeArea,
+      statusCard,
+      directoryCard,
+      actions,
+      this.bookBrowser.root,
+      footer,
+    );
+  }
+
+  setHandlers(handlers: AppActionHandlers): void {
+    this.handlers = handlers;
+  }
+
+  update(model: AppViewModel): void {
+    setText(this.status, model.statusText);
+    setClassName(this.status, `status ${model.statusTone}`);
+    if (model.progressMode === "determinate") {
+      this.progress.value = model.progressPercent;
+    } else {
+      this.progress.removeAttribute("value");
+    }
+    setText(this.progressCaption, model.progressCaption);
+    setText(this.runState.value, model.runStateText);
+    setText(this.account.value, model.accountText);
+    setText(this.detailProgress.value, model.progressText);
+    setText(this.recordCount.value, String(model.recordCount));
+    setText(this.requestCount.value, String(model.requestCount));
+    setText(this.warningCount.value, String(model.warningCount));
+    setText(this.failureCount.value, String(model.failureCount));
+    setText(this.currentUrl.value, model.currentUrlText);
+    setText(this.nextRequest.value, model.nextRequestText);
+    setText(this.directory, model.directoryText);
+
+    setText(this.notice, model.noticeText);
+    setHidden(this.notice, model.noticeText === "");
+    setText(this.error, model.errorText);
+    setHidden(this.error, model.errorText === "");
+    setHidden(this.partial, !model.exportWillBePartial);
+
+    this.start.update("开始导出任务", model.canStart);
+    this.pause.update("暂停", model.canPause);
+    this.resume.update("继续", model.canResume);
+    this.exportCsv.update(
+      model.exportWillBePartial ? "导出 partial CSV" : "导出 CSV",
+      model.canExport,
+    );
+    this.reset.update("重新开始", model.canReset);
+
+    setHidden(this.bookBrowser.root, model.bookBrowser === undefined);
+    if (model.bookBrowser) this.bookBrowser.update(model.bookBrowser);
+  }
+}
+
+const views = new WeakMap<HTMLElement, AppView>();
 
 export function renderApp(
   root: HTMLElement,
   model: AppViewModel,
   handlers: AppActionHandlers,
 ): void {
-  const header = element("header", "hero");
-  header.append(
-    element("p", "eyebrow", "本地、低频、可恢复"),
-    element("h1", undefined, "豆瓣图书导出器"),
-    element(
-      "p",
-      "subtitle",
-      "导出读过、想读和在读的图书，不读取或上传 Cookie。",
-    ),
-  );
-
-  const statusCard = element("section", "card status-card");
-  const statusHeader = element("div", "section-heading");
-  statusHeader.append(
-    element("h2", undefined, "任务状态"),
-    element("span", `status ${model.statusTone}`, model.statusText),
-  );
-  const progress = element("progress");
-  progress.max = 100;
-  if (model.progressMode === "determinate") {
-    progress.value = model.progressPercent;
+  let view = views.get(root);
+  if (!view) {
+    view = new AppView(root, handlers);
+    views.set(root, view);
+  } else {
+    view.setHandlers(handlers);
   }
-  progress.setAttribute("aria-label", "详情抓取进度");
-  const progressCaption = element(
-    "p",
-    "progress-caption",
-    model.progressCaption,
-  );
-  const details = element("dl", "details-grid");
-  details.append(
-    detail("运行状态", model.runStateText),
-    detail("当前用户", model.accountText),
-    detail("详情进度", model.progressText),
-    detail("已保存记录", String(model.recordCount)),
-    detail("豆瓣请求数", String(model.requestCount)),
-    detail("警告数", String(model.warningCount)),
-    detail("失败数", String(model.failureCount)),
-    detail("当前页面", model.currentUrlText),
-    detail("下次允许请求", model.nextRequestText),
-  );
-  statusCard.append(statusHeader, progress, progressCaption, details);
-
-  const directoryCard = element("section", "card");
-  directoryCard.append(
-    element("h2", undefined, "保存位置"),
-    element("p", "directory", model.directoryText),
-  );
-  const directoryActions = element("div", "actions secondary-actions");
-  directoryActions.append(
-    actionButton("chooseDirectory", "选择目录", true, handlers.chooseDirectory),
-    actionButton(
-      "useDefaultDirectory",
-      "使用默认下载目录",
-      true,
-      handlers.useDefaultDirectory,
-    ),
-  );
-  directoryCard.append(directoryActions);
-
-  const noticeArea = element("div", "message-stack");
-  if (model.noticeText) {
-    noticeArea.append(element("p", "message notice", model.noticeText));
-  }
-  if (model.errorText) {
-    const error = element("p", "message error", model.errorText);
-    error.setAttribute("role", "alert");
-    noticeArea.append(error);
-  }
-  if (model.exportWillBePartial) {
-    noticeArea.append(
-      element("p", "message warning", "当前导出会标记为 partial，数据尚不完整。"),
-    );
-  }
-
-  const actions = element("section", "card action-card");
-  actions.append(element("h2", undefined, "操作"));
-  const buttons = element("div", "actions");
-  buttons.append(
-    actionButton("start", "开始导出任务", model.canStart, handlers.start, true),
-    actionButton("pause", "暂停", model.canPause, handlers.pause),
-    actionButton("resume", "继续", model.canResume, handlers.resume, true),
-    actionButton(
-      "exportCsv",
-      model.exportWillBePartial ? "导出 partial CSV" : "导出 CSV",
-      model.canExport,
-      handlers.exportCsv,
-    ),
-    actionButton("reset", "重新开始", model.canReset, handlers.reset),
-  );
-  actions.append(buttons);
-
-  const footer = element(
-    "footer",
-    undefined,
-    "遇到验证码、403 或 429 时扩展会停止请求，请稍后手动继续。",
-  );
-  const bookBrowser = model.bookBrowser
-    ? renderBookBrowser(model.bookBrowser, handlers)
-    : null;
-  root.replaceChildren(
-    header,
-    noticeArea,
-    statusCard,
-    directoryCard,
-    actions,
-    ...(bookBrowser ? [bookBrowser] : []),
-    footer,
-  );
+  view.update(model);
 }
