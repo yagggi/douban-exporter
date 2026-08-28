@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 
 import { Crawler, type CrawlerDependencies } from "../../src/crawler/crawler";
 import type { FetchedPage } from "../../src/crawler/fetch-page";
+import type { ExportJob } from "../../src/domain/types";
 import {
   MINE_URL,
   buildInitialListUrls,
@@ -108,6 +109,7 @@ export interface CrawlerHarnessOptions {
   pages?: Map<string, FetchedPage>;
   onRequest?: (url: string, crawler: Crawler) => void;
   onSleep?: (milliseconds: number, crawler: Crawler) => void;
+  onPublish?: (job: ExportJob, crawler: Crawler) => void;
   sleepImplementation?: (
     milliseconds: number,
     signal: AbortSignal | undefined,
@@ -167,7 +169,9 @@ export async function makeCrawler(
     },
     random: () => 0,
     now: () => new Date(currentTime),
-    publish: async () => {},
+    publish: async (job) => {
+      options.onPublish?.(job, crawler);
+    },
   };
   crawler = new Crawler(dependencies);
 

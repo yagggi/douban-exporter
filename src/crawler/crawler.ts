@@ -101,9 +101,12 @@ export class Crawler {
     return true;
   }
 
-  private async waitUntilAllowed(job: ExportJob): Promise<void> {
+  private async waitUntilAllowed(job: ExportJob): Promise<boolean> {
+    if (await this.pauseIfRequested(job)) {
+      return false;
+    }
     if (job.nextAllowedAt === null) {
-      return;
+      return true;
     }
     const remaining = Date.parse(job.nextAllowedAt) - this.dependencies.now().getTime();
     if (remaining > 0) {
@@ -121,6 +124,7 @@ export class Crawler {
         }
       }
     }
+    return !(await this.pauseIfRequested());
   }
 
   private async recordRequestAttempt(
@@ -181,8 +185,7 @@ export class Crawler {
       updatedAt: this.nowIso(),
     };
     await this.saveAndPublish(retryJob);
-    await this.waitUntilAllowed(retryJob);
-    return true;
+    return this.waitUntilAllowed(retryJob);
   }
 
   private async request(url: string): Promise<FetchedPage | null> {
@@ -191,11 +194,7 @@ export class Crawler {
       if (!beforeRequest || !isActiveJobState(beforeRequest.state)) {
         return null;
       }
-      if (await this.pauseIfRequested(beforeRequest)) {
-        return null;
-      }
-      await this.waitUntilAllowed(beforeRequest);
-      if (await this.pauseIfRequested()) {
+      if (!(await this.waitUntilAllowed(beforeRequest))) {
         return null;
       }
 

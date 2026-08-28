@@ -277,6 +277,36 @@ describe("Crawler", () => {
     expect(harness.requestedUrls).toEqual([MINE_URL]);
   });
 
+  it("does not enter retry backoff when pause arrives as retry state is saved", async () => {
+    const pages = new Map<string, FetchedPage>([
+      [
+        MINE_URL,
+        {
+          status: 503,
+          finalUrl: MINE_URL,
+          html: "service unavailable",
+          retryAfterMs: null,
+        },
+      ],
+    ]);
+    let pauseSent = false;
+    harness = await makeCrawler({
+      pages,
+      onPublish(job, crawler) {
+        if (!pauseSent && job.retry?.attempt === 1) {
+          pauseSent = true;
+          crawler.requestPause();
+        }
+      },
+    });
+
+    await harness.crawler.run();
+
+    expect((await harness.repository.getJob())?.state).toBe("paused");
+    expect(harness.observedSleeps).toEqual([]);
+    expect(harness.requestedUrls).toEqual([MINE_URL]);
+  });
+
   it("fails closed when a list page loses its recognizable structure", async () => {
     const pages = authenticatedTwoBookScenario();
     const firstListUrl = [...pages.keys()].find((url) => url.includes("/collect?"));
