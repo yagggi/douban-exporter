@@ -40,6 +40,13 @@ function userIdFromUrl(value: string): string | null {
   }
 }
 
+function cleanUserName(value: string): string {
+  return normalizeInlineText(value).replace(
+    /\s*[（(]\s*编辑\s*[)）]\s*$/u,
+    "",
+  );
+}
+
 export function parseIdentity(page: FetchedPage): DoubanIdentity {
   const document = parseHtml(page.html);
   const profileLinks = [
@@ -64,11 +71,11 @@ export function parseIdentity(page: FetchedPage): DoubanIdentity {
     /的(?:读书)?主页(?:\s*\(豆瓣\))?$/u,
     "",
   );
-  const userName =
+  const userName = cleanUserName(
     normalizeInlineText(matchingLink?.textContent ?? "") ||
-    heading ||
-    title ||
-    userId;
+      heading ||
+      title ||
+      userId,
+  );
   return { userId, userName };
 }
-

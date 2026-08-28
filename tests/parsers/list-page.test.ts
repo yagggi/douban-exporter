@@ -65,6 +65,17 @@ describe("parseListPage", () => {
     ).toEqual({ records: [], nextUrl: null, explicitlyEmpty: true });
   });
 
+  it("recognizes Douban's current empty interest-list container", async () => {
+    const html = await readFile(
+      "tests/fixtures/list-current-empty-interest-list.html",
+      "utf8",
+    );
+
+    expect(
+      parseListPage(parseHtml(html), "do", "2026-08-28T00:00:00.000Z"),
+    ).toEqual({ records: [], nextUrl: null, explicitlyEmpty: true });
+  });
+
   it("uses an independent review timestamp when the page exposes one", () => {
     const html = `
       <li class="item">

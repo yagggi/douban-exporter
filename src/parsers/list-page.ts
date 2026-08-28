@@ -135,7 +135,10 @@ export function parseListPage(
     ),
   ];
   if (items.length === 0) {
-    const explicitlyEmpty = EMPTY_LIST_PATTERN.test(document.body.textContent ?? "");
+    const interestList = document.querySelector("ul.interest-list");
+    const explicitlyEmpty =
+      EMPTY_LIST_PATTERN.test(document.body.textContent ?? "") ||
+      (interestList !== null && interestList.children.length === 0);
     if (!explicitlyEmpty) {
       throw new PageStructureError("页面没有可识别的图书列表结构");
     }
