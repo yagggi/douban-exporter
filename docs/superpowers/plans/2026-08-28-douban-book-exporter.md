@@ -41,7 +41,6 @@
 - Create: `src/background/service-worker.ts`
 - Create: `src/offscreen/main.ts`
 - Create: `src/types/file-system-access.d.ts`
-- Create: `tests/manifest.test.ts`
 
 **Interfaces:**
 
@@ -89,47 +88,13 @@ Run: `npm install`
 
 Expected: 生成 `package-lock.json`，命令退出码为 0。
 
-- [ ] **Step 3: 编写失败的 manifest 合约测试**
+- [ ] **Step 3: 运行生产构建并确认因入口缺失而失败**
 
-```ts
-import { readFile } from "node:fs/promises";
+Run: `npm run build`
 
-import { describe, expect, it } from "vitest";
+Expected: FAIL，错误指向缺少 Vite 配置或扩展入口。这里直接验证配置的消费行为，不为配置源文本创建变更探测测试。
 
-describe("extension manifest", () => {
-  it("uses MV3 with only the approved permissions", async () => {
-    const source = await readFile("public/manifest.json", "utf8");
-    const manifest = JSON.parse(source) as {
-      manifest_version: number;
-      minimum_chrome_version: string;
-      permissions: string[];
-      host_permissions: string[];
-      background: { service_worker: string; type: string };
-    };
-
-    expect(manifest.manifest_version).toBe(3);
-    expect(manifest.minimum_chrome_version).toBe("116");
-    expect(manifest.permissions.sort()).toEqual(
-      ["alarms", "downloads", "offscreen"].sort(),
-    );
-    expect(manifest.permissions).not.toContain("cookies");
-    expect(manifest.permissions).not.toContain("storage");
-    expect(manifest.host_permissions).toEqual(["https://*.douban.com/*"]);
-    expect(manifest.background).toEqual({
-      service_worker: "assets/service-worker.js",
-      type: "module",
-    });
-  });
-});
-```
-
-- [ ] **Step 4: 运行测试并确认因 manifest 缺失而失败**
-
-Run: `npm test -- tests/manifest.test.ts`
-
-Expected: FAIL，错误指向无法读取 `public/manifest.json`。
-
-- [ ] **Step 5: 创建最小扩展骨架**
+- [ ] **Step 4: 创建最小扩展骨架**
 
 `public/manifest.json` 必须包含：
 
@@ -154,16 +119,16 @@ Expected: FAIL，错误指向无法读取 `public/manifest.json`。
 
 `vite.config.ts` 使用三个 Rollup 输入：`app.html`、`offscreen.html`、`src/background/service-worker.ts`，并把 entry 文件名固定为 `assets/[name].js`。两个 HTML 文件只加载各自的 TypeScript 入口，不包含内联脚本。
 
-- [ ] **Step 6: 运行骨架验证**
+- [ ] **Step 5: 运行骨架验证**
 
-Run: `npm test -- tests/manifest.test.ts && npm run typecheck && npm run build`
+Run: `npm run typecheck && npm run build`
 
-Expected: 测试 1 个通过；类型检查退出码 0；`dist/manifest.json`、`dist/app.html`、`dist/offscreen.html`、`dist/assets/service-worker.js` 存在。
+Expected: 类型检查退出码 0；`dist/manifest.json`、`dist/app.html`、`dist/offscreen.html`、`dist/assets/service-worker.js` 存在。
 
-- [ ] **Step 7: 提交骨架**
+- [ ] **Step 6: 提交骨架**
 
 ```bash
-git add .gitignore package.json package-lock.json tsconfig.json vite.config.ts public app.html offscreen.html src tests/manifest.test.ts
+git add .gitignore package.json package-lock.json tsconfig.json vite.config.ts public app.html offscreen.html src
 git commit -m "build: 初始化 Chrome 扩展工程"
 ```
 
