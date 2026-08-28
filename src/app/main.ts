@@ -4,6 +4,7 @@ import { DirectoryWriter } from "../export/directory";
 import type { RuntimeEvent } from "../runtime/messages";
 import { ExporterRepository } from "../storage/repository";
 import { AppController } from "./controller";
+import { shouldDeferRefreshForSelection } from "./selection";
 import { renderApp, type AppActionHandlers } from "./view";
 
 const root = document.querySelector<HTMLElement>("#app");
@@ -29,7 +30,7 @@ async function bootstrap(root: HTMLElement): Promise<void> {
 
   let rendering = false;
   const refresh = async (): Promise<void> => {
-    if (rendering) return;
+    if (rendering || shouldDeferRefreshForSelection(root)) return;
     rendering = true;
     try {
       renderApp(root, await controller.viewModel(), handlers);
