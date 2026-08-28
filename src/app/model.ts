@@ -1,4 +1,7 @@
-import { isActiveJobState } from "../domain/job-state";
+import {
+  isActiveJobState,
+  isResumableJobState,
+} from "../domain/job-state";
 import type { ExportJob, JobState } from "../domain/types";
 
 export interface AppViewModel {
@@ -9,6 +12,8 @@ export interface AppViewModel {
   progressPercent: number;
   recordCount: number;
   requestCount: number;
+  warningCount: number;
+  failureCount: number;
   currentUrlText: string;
   nextRequestText: string;
   directoryText: string;
@@ -53,15 +58,7 @@ function statusTone(job: ExportJob | undefined): AppViewModel["statusTone"] {
 
 function canResume(job: ExportJob | undefined): boolean {
   return Boolean(
-    job?.resumeState &&
-      [
-        "paused",
-        "auth_required",
-        "captcha_required",
-        "rate_limited",
-        "parse_error",
-        "failed",
-      ].includes(job.state),
+    job?.resumeState && isResumableJobState(job.state),
   );
 }
 
@@ -90,6 +87,8 @@ export function deriveViewModel(
     progressPercent,
     recordCount,
     requestCount: job?.requestCount ?? 0,
+    warningCount: job?.warningCount ?? 0,
+    failureCount: job?.failureCount ?? 0,
     currentUrlText: job?.currentUrl ?? "无",
     nextRequestText: job?.nextAllowedAt
       ? new Date(job.nextAllowedAt).toLocaleString()
@@ -106,4 +105,3 @@ export function deriveViewModel(
     exportWillBePartial: Boolean(canExport && job?.state !== "completed"),
   };
 }
-

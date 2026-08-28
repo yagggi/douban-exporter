@@ -7,6 +7,7 @@ import {
 } from "../runtime/messages";
 import { ExporterRepository } from "../storage/repository";
 import { OffscreenController } from "./controller";
+import { notifyRuntimeBestEffort } from "./notifier";
 
 const repositoryPromise = ExporterRepository.open();
 
@@ -21,7 +22,10 @@ const controller = new OffscreenController(
       now: () => new Date(),
       publish: async (job) => {
         const event: RuntimeEvent = { type: "job_changed", job };
-        await chrome.runtime.sendMessage(event);
+        await notifyRuntimeBestEffort(
+          (message) => chrome.runtime.sendMessage(message),
+          event,
+        );
       },
     });
   },

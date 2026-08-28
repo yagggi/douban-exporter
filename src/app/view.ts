@@ -74,6 +74,8 @@ export function renderApp(
     detail("详情进度", model.progressText),
     detail("已保存记录", String(model.recordCount)),
     detail("豆瓣请求数", String(model.requestCount)),
+    detail("警告数", String(model.warningCount)),
+    detail("失败数", String(model.failureCount)),
     detail("当前页面", model.currentUrlText),
     detail("下次允许请求", model.nextRequestText),
   );
@@ -135,4 +137,3 @@ export function renderApp(
   );
   root.replaceChildren(header, noticeArea, statusCard, directoryCard, actions, footer);
 }
-

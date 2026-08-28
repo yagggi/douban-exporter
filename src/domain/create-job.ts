@@ -7,12 +7,15 @@ export function createExportJob(
     id: "current",
     state: "checking_auth",
     resumeState: null,
+    resumeAfterAuth: null,
     userId: "",
     userName: "",
     listCursors: { collect: null, wish: null, do: null },
     completedLists: [],
     recordsDiscovered: 0,
     detailsCompleted: 0,
+    warningCount: 0,
+    failureCount: 0,
     requestCount: 0,
     retry: null,
     nextAllowedAt: null,
@@ -23,4 +26,3 @@ export function createExportJob(
     updatedAt: now,
   };
 }
-

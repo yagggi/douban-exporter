@@ -78,6 +78,23 @@ function sortRecords(records: BookRecord[]): BookRecord[] {
   });
 }
 
+async function abortAndRethrow(
+  transaction: { abort(): void; done: Promise<unknown> },
+  error: unknown,
+): Promise<never> {
+  try {
+    transaction.abort();
+  } catch {
+    // IndexedDB may already have aborted after a request failure.
+  }
+  try {
+    await transaction.done;
+  } catch {
+    // The original error below is the actionable one.
+  }
+  throw error;
+}
+
 export class ExporterRepository {
   private constructor(
     private readonly database: IDBPDatabase<ExporterDatabaseSchema>,
@@ -134,12 +151,18 @@ export class ExporterRepository {
         throw new Error("找不到当前导出任务");
       }
 
+      let warningCount = job.warningCount ?? 0;
       for (const record of input.records) {
         if (record.status !== input.status) {
           throw new Error("列表记录状态与当前分页不一致");
         }
         const existing = await records.get(record.subjectId);
-        await records.put(mergeListObservation(existing, record));
+        const merged = mergeListObservation(existing, record);
+        warningCount += Math.max(
+          0,
+          merged.warnings.length - (existing?.warnings.length ?? 0),
+        );
+        await records.put(merged);
       }
 
       const completedLists =
@@ -159,6 +182,7 @@ export class ExporterRepository {
         },
         completedLists,
         recordsDiscovered: await records.count(),
+        warningCount,
         currentUrl: null,
         retry: null,
         updatedAt: input.committedAt,
@@ -168,17 +192,7 @@ export class ExporterRepository {
       await jobs.put(nextJob, "current");
       await transaction.done;
     } catch (error) {
-      try {
-        transaction.abort();
-      } catch {
-        // IndexedDB may already have aborted after a request failure.
-      }
-      try {
-        await transaction.done;
-      } catch {
-        // The original error below is the actionable one.
-      }
-      throw error;
+      return abortAndRethrow(transaction, error);
     }
   }
 
@@ -232,17 +246,7 @@ export class ExporterRepository {
       await jobs.put(nextJob, "current");
       await transaction.done;
     } catch (error) {
-      try {
-        transaction.abort();
-      } catch {
-        // IndexedDB may already have aborted after a request failure.
-      }
-      try {
-        await transaction.done;
-      } catch {
-        // The original error below is the actionable one.
-      }
-      throw error;
+      return abortAndRethrow(transaction, error);
     }
   }
 

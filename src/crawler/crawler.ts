@@ -55,7 +55,6 @@ export class Crawler {
       return;
     }
     this.running = true;
-    this.pauseRequested = false;
     try {
       while (true) {
         const job = await this.dependencies.repository.getJob();
@@ -79,6 +78,7 @@ export class Crawler {
       }
     } finally {
       this.running = false;
+      this.pauseRequested = false;
     }
   }
 
@@ -284,17 +284,40 @@ export class Crawler {
       if (!job || job.state !== "checking_auth") {
         return;
       }
+      if (job.userId !== "" && job.userId !== identity.userId) {
+        await this.block(job, "auth_required", {
+          category: "account_mismatch",
+          message: "当前登录的豆瓣账号与此导出任务不一致",
+          url: MINE_URL,
+        });
+        return;
+      }
+      const isInitialAuthentication = job.userId === "";
       await this.saveAndPublish({
         ...job,
-        state: "discovering_lists",
+        state: job.resumeAfterAuth ?? "discovering_lists",
+        resumeAfterAuth: null,
         userId: identity.userId,
         userName: identity.userName,
-        listCursors: buildInitialListUrls(identity.userId),
+        listCursors: isInitialAuthentication
+          ? buildInitialListUrls(identity.userId)
+          : job.listCursors,
         currentUrl: null,
         updatedAt: this.nowIso(),
       });
     } catch (error) {
-      await this.blockParseError(error, MINE_URL);
+      if (error instanceof PageStructureError) {
+        const job = await this.dependencies.repository.getJob();
+        if (job && isActiveJobState(job.state)) {
+          await this.block(job, "auth_required", {
+            category: "identity_missing",
+            message: error.message,
+            url: MINE_URL,
+          });
+        }
+      } else {
+        await this.blockParseError(error, MINE_URL);
+      }
     }
   }
 

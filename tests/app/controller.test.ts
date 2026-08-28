@@ -82,7 +82,10 @@ describe("AppController", () => {
 
     await controller.resume();
 
-    expect((await repository.getJob())?.state).toBe("enriching_details");
+    expect(await repository.getJob()).toMatchObject({
+      state: "checking_auth",
+      resumeAfterAuth: "enriching_details",
+    });
     expect(messages).toEqual([{ type: "resume_job" }]);
   });
 

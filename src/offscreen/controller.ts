@@ -8,6 +8,7 @@ export interface CrawlerRunner {
 export class OffscreenController {
   private runner: CrawlerRunner | null = null;
   private activeRun: Promise<void> | null = null;
+  private pausePending = false;
 
   constructor(
     private readonly createRunner: () => Promise<CrawlerRunner>,
@@ -16,7 +17,11 @@ export class OffscreenController {
 
   async handle(command: CrawlerCommand): Promise<void> {
     if (command.type === "crawler_pause") {
-      this.runner?.requestPause();
+      if (this.runner) {
+        this.runner.requestPause();
+      } else {
+        this.pausePending = true;
+      }
       return;
     }
     if (this.activeRun) {
@@ -32,6 +37,10 @@ export class OffscreenController {
 
   private async runOnce(): Promise<void> {
     this.runner ??= await this.createRunner();
+    if (this.pausePending) {
+      this.pausePending = false;
+      this.runner.requestPause();
+    }
     try {
       await this.runner.run();
     } finally {

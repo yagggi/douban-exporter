@@ -11,6 +11,8 @@ describe("deriveViewModel", () => {
         resumeState: "enriching_details",
         detailsCompleted: 12,
         recordsDiscovered: 20,
+        warningCount: 2,
+        failureCount: 1,
       }),
       20,
       null,
@@ -22,6 +24,8 @@ describe("deriveViewModel", () => {
     expect(model.canExport).toBe(true);
     expect(model.exportWillBePartial).toBe(true);
     expect(model.progressPercent).toBe(60);
+    expect(model.warningCount).toBe(2);
+    expect(model.failureCount).toBe(1);
   });
 
   it("shows the idle start action before a task exists", () => {

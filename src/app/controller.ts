@@ -1,5 +1,8 @@
 import { createExportJob } from "../domain/create-job";
-import { isActiveJobState, resumeJob } from "../domain/job-state";
+import {
+  isActiveJobState,
+  resumeJobWithAuthCheck,
+} from "../domain/job-state";
 import type { BackgroundCommand } from "../runtime/messages";
 import type { ExporterRepository } from "../storage/repository";
 import { serializeBooksToCsv } from "../export/csv";
@@ -106,7 +109,7 @@ export class AppController {
       throw new Error("没有可继续的任务");
     }
     await this.dependencies.repository.saveJob(
-      resumeJob(job, this.dependencies.now().toISOString()),
+      resumeJobWithAuthCheck(job, this.dependencies.now().toISOString()),
     );
     await this.send({ type: "resume_job" });
     this.noticeText = "任务已从断点继续";

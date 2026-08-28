@@ -74,12 +74,15 @@ export interface ExportJob {
   id: "current";
   state: JobState;
   resumeState: ActiveJobState | null;
+  resumeAfterAuth: ActiveJobState | null;
   userId: string;
   userName: string;
   listCursors: Record<BookStatus, string | null>;
   completedLists: BookStatus[];
   recordsDiscovered: number;
   detailsCompleted: number;
+  warningCount: number;
+  failureCount: number;
   requestCount: number;
   retry: RetryState | null;
   nextAllowedAt: string | null;
@@ -89,4 +92,3 @@ export interface ExportJob {
   startedAt: string;
   updatedAt: string;
 }
-

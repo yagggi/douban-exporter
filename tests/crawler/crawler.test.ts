@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { resumeJob } from "../../src/domain/job-state";
+import { resumeJobWithAuthCheck } from "../../src/domain/job-state";
 import { MINE_URL } from "../../src/crawler/routes";
 import type { FetchedPage } from "../../src/crawler/fetch-page";
 import {
@@ -47,13 +47,16 @@ describe("Crawler", () => {
 
     const paused = await harness.repository.getJob();
     if (!paused) throw new Error("测试任务不存在");
-    await harness.repository.saveJob(resumeJob(paused));
+    await harness.repository.saveJob(resumeJobWithAuthCheck(paused));
     await harness.crawler.run();
 
     expect((await harness.repository.getJob())?.state).toBe("completed");
     expect(
       harness.requestedUrls.filter((url) => url.endsWith("/subject/1036274/")),
     ).toHaveLength(1);
+    expect(harness.requestedUrls.filter((url) => url === MINE_URL)).toHaveLength(
+      2,
+    );
     expect(
       harness.requestedUrls.filter((url) => url.endsWith("/subject/9999999/")),
     ).toHaveLength(1);
@@ -76,6 +79,19 @@ describe("Crawler", () => {
     expect(await harness.repository.getJob()).toMatchObject({
       state: "paused",
       resumeState: "discovering_lists",
+    });
+  });
+
+  it("honors a pause that arrives immediately before the run loop starts", async () => {
+    harness = await makeCrawler();
+    harness.crawler.requestPause();
+
+    await harness.crawler.run();
+
+    expect(harness.requestedUrls).toEqual([]);
+    expect(await harness.repository.getJob()).toMatchObject({
+      state: "paused",
+      resumeState: "checking_auth",
     });
   });
 
@@ -123,6 +139,50 @@ describe("Crawler", () => {
 
     expect((await harness.repository.getJob())?.state).toBe("captcha_required");
     expect(harness.requestedUrls).toHaveLength(1);
+  });
+
+  it("treats a successful page without a user identity as authentication required", async () => {
+    const pages = new Map<string, FetchedPage>([
+      [
+        MINE_URL,
+        {
+          status: 200,
+          finalUrl: MINE_URL,
+          html: "<html><body>无法识别的个人入口</body></html>",
+          retryAfterMs: null,
+        },
+      ],
+    ]);
+    harness = await makeCrawler({ pages });
+
+    await harness.crawler.run();
+
+    expect(await harness.repository.getJob()).toMatchObject({
+      state: "auth_required",
+      resumeState: "checking_auth",
+    });
+  });
+
+  it("does not continue an existing task under a different Douban account", async () => {
+    harness = await makeCrawler();
+    const job = await harness.repository.getJob();
+    if (!job) throw new Error("测试任务不存在");
+    await harness.repository.saveJob({
+      ...job,
+      state: "checking_auth",
+      userId: "another-user",
+      userName: "另一个用户",
+      resumeAfterAuth: "enriching_details",
+    });
+
+    await harness.crawler.run();
+
+    expect(await harness.repository.getJob()).toMatchObject({
+      state: "auth_required",
+      resumeAfterAuth: "enriching_details",
+      lastError: { category: "account_mismatch" },
+    });
+    expect(harness.requestedUrls).toEqual([MINE_URL]);
   });
 
   it("retries server errors exactly three times with the frozen backoff", async () => {

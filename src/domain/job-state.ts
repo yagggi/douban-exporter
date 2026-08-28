@@ -29,6 +29,10 @@ export function isActiveJobState(state: JobState): state is ActiveJobState {
   return ACTIVE_STATES.has(state);
 }
 
+export function isResumableJobState(state: JobState): boolean {
+  return RESUMABLE_STATES.has(state);
+}
+
 export function pauseJob(
   job: ExportJob,
   reason: string,
@@ -63,6 +67,9 @@ export function blockJob(
     resumeState: job.state,
     pauseReason: null,
     lastError: error,
+    failureCount:
+      (job.failureCount ?? 0) +
+      (state === "failed" || state === "parse_error" ? 1 : 0),
     updatedAt: now,
   };
 }
@@ -71,7 +78,7 @@ export function resumeJob(job: ExportJob, now = currentTime()): ExportJob {
   if (job.state === "completed") {
     throw new Error("任务已完成，不能继续");
   }
-  if (!RESUMABLE_STATES.has(job.state)) {
+  if (!isResumableJobState(job.state)) {
     throw new Error("当前任务状态不能继续");
   }
   if (job.resumeState === null) {
@@ -88,6 +95,26 @@ export function resumeJob(job: ExportJob, now = currentTime()): ExportJob {
   };
 }
 
+export function resumeJobWithAuthCheck(
+  job: ExportJob,
+  now = currentTime(),
+): ExportJob {
+  const requestedTarget = job.resumeState;
+  const resumed = resumeJob(job, now);
+  if (requestedTarget === null) {
+    throw new Error("任务缺少可恢复阶段");
+  }
+  const targetAfterAuth =
+    requestedTarget === "checking_auth"
+      ? (job.resumeAfterAuth ?? null)
+      : requestedTarget;
+  return {
+    ...resumed,
+    state: "checking_auth",
+    resumeAfterAuth: targetAfterAuth,
+  };
+}
+
 export function completeJob(job: ExportJob, now = currentTime()): ExportJob {
   if (!isActiveJobState(job.state)) {
     throw new Error("只有运行中的任务可以完成");
@@ -97,6 +124,7 @@ export function completeJob(job: ExportJob, now = currentTime()): ExportJob {
     ...job,
     state: "completed",
     resumeState: null,
+    resumeAfterAuth: null,
     currentUrl: null,
     retry: null,
     nextAllowedAt: null,
@@ -105,4 +133,3 @@ export function completeJob(job: ExportJob, now = currentTime()): ExportJob {
     updatedAt: now,
   };
 }
-

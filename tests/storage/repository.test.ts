@@ -117,6 +117,7 @@ describe("ExporterRepository", () => {
       detailStatus: "complete",
       warnings: ["状态在抓取期间发生冲突"],
     });
+    expect((await repository.getJob())?.warningCount).toBe(1);
   });
 
   it("does not advance detail progress when the atomic commit fails", async () => {

@@ -13,6 +13,17 @@ function deferred(): {
   return { promise, resolve };
 }
 
+function deferredValue<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+} {
+  let resolve = (_value: T) => {};
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 describe("OffscreenController", () => {
   it("does not run two crawler loops concurrently", async () => {
     const run = deferred();
@@ -49,5 +60,26 @@ describe("OffscreenController", () => {
     run.resolve();
     await running;
   });
-});
 
+  it("preserves a pause received while the crawler is still being created", async () => {
+    const creation = deferredValue<{
+      run(): Promise<void>;
+      requestPause(): void;
+    }>();
+    const runner = {
+      run: vi.fn(async () => {}),
+      requestPause: vi.fn(),
+    };
+    const controller = new OffscreenController(
+      () => creation.promise,
+      async () => {},
+    );
+
+    const starting = controller.handle({ type: "crawler_start" });
+    await controller.handle({ type: "crawler_pause" });
+    creation.resolve(runner);
+    await starting;
+
+    expect(runner.requestPause).toHaveBeenCalledTimes(1);
+  });
+});

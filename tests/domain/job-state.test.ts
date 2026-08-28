@@ -5,6 +5,7 @@ import {
   completeJob,
   pauseJob,
   resumeJob,
+  resumeJobWithAuthCheck,
 } from "../../src/domain/job-state";
 import { makeJob } from "../support/factories";
 
@@ -43,9 +44,36 @@ describe("job state", () => {
     });
   });
 
+  it("counts a terminal parsing failure in the task summary", () => {
+    const running = makeJob({ state: "discovering_lists" });
+    expect(
+      blockJob(
+        running,
+        "parse_error",
+        { category: "page_structure", message: "结构变化" },
+      ).failureCount,
+    ).toBe(1);
+  });
+
   it("rejects resuming a completed job", () => {
     const completed = makeJob({ state: "completed", resumeState: null });
     expect(() => resumeJob(completed)).toThrow("任务已完成，不能继续");
+  });
+
+  it("rechecks authentication without losing the exact resume phase", () => {
+    const paused = makeJob({
+      state: "paused",
+      resumeState: "enriching_details",
+    });
+
+    expect(
+      resumeJobWithAuthCheck(paused, "2026-08-28T02:00:00.000Z"),
+    ).toMatchObject({
+      state: "checking_auth",
+      resumeState: null,
+      resumeAfterAuth: "enriching_details",
+      updatedAt: "2026-08-28T02:00:00.000Z",
+    });
   });
 
   it("clears resumable state when completing", () => {
@@ -65,4 +93,3 @@ describe("job state", () => {
     });
   });
 });
-
