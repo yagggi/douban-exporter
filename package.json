@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "validate:dist": "node scripts/validate-dist.mjs",
+    "check": "npm test && npm run typecheck && npm run build && npm run validate:dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -23,4 +25,3 @@
     "vitest": "^3.2.0"
   }
 }
-
